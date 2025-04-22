@@ -1,0 +1,56 @@
+<div class="fixed bottom-6 right-6 z-50">
+  <!-- Chat Button -->
+  <button (click)="toggleChat()" 
+          class="bg-primary hover:bg-accent text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center">
+    <svg *ngIf="!isOpen" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+    </svg>
+    <svg *ngIf="isOpen" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path d="M6 18L18 6M6 6l12 12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+    </svg>
+  </button>
+
+  <!-- Chat Window -->
+  <div *ngIf="isOpen" class="absolute bottom-20 right-0 w-80 bg-white rounded-lg shadow-xl">
+    <!-- Chat Header -->
+    <div class="bg-primary text-white p-3 rounded-t-lg flex justify-between items-center">
+      <div class="flex items-center">
+        <i class="fas fa-robot mr-2"></i>
+        <h3 class="font-semibold">Tư vấn Ocean Fresh</h3>
+      </div>
+    </div>
+    
+    <!-- Chat Messages -->
+    <div class="h-96 overflow-y-auto p-4 flex flex-col space-y-3">
+      <ng-container *ngFor="let message of messages">
+        <!-- Bot Message -->
+        <div *ngIf="message.type === 'bot'" class="flex items-start max-w-[80%]">
+          <div class="bg-gray-100 rounded-lg p-3">
+            <p>{{ message.text }}</p>
+            <span class="text-xs text-gray-500 mt-1 block">{{ message.time }}</span>
+          </div>
+        </div>
+        
+        <!-- User Message -->
+        <div *ngIf="message.type === 'user'" class="flex justify-end items-start">
+          <div class="bg-primary text-white rounded-lg p-3 max-w-[80%]">
+            <p>{{ message.text }}</p>
+            <span class="text-xs text-white/70 mt-1 block">{{ message.time }}</span>
+          </div>
+        </div>
+      </ng-container>
+    </div>
+    
+    <!-- Chat Input -->
+    <div class="p-3 border-t">
+      <form (submit)="$event.preventDefault(); sendMessage()" class="flex">
+        <input type="text" [(ngModel)]="userMessage" placeholder="Nhập tin nhắn..." name="message"
+               class="w-full px-3 py-2 border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-primary">
+        <button type="submit" [disabled]="!userMessage.trim()"
+                class="bg-primary hover:bg-accent text-white px-4 rounded-r-lg disabled:bg-gray-300">
+          <i class="fas fa-paper-plane"></i>
+        </button>
+      </form>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,79 @@
+<header class="bg-white shadow-md fixed w-full top-0 z-50">
+  <nav class="container mx-auto px-4 py-3">
+    <div class="flex items-center justify-between">
+      <!-- Logo -->
+      <a href="/" class="flex items-center">
+        <img src="assets/images/logo.png" alt="Ocean Fresh" class="h-12">
+      </a>
+
+      <!-- Desktop Menu -->
+      <div class="hidden md:flex items-center space-x-8">
+        <a href="/" class="text-primary hover:text-accent">Trang chủ</a>
+        <a href="/about" class="text-primary hover:text-accent">Giới thiệu</a>
+        <div class="relative group">
+          <button class="text-primary hover:text-accent flex items-center">
+            Sản phẩm
+            <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </button>
+          <div class="absolute hidden group-hover:block w-48 bg-white shadow-lg py-2">
+            <a href="/products/shrimp" class="block px-4 py-2 hover:bg-gray-100">Tôm</a>
+            <a href="/products/crab" class="block px-4 py-2 hover:bg-gray-100">Cua</a>
+            <a href="/products/fish" class="block px-4 py-2 hover:bg-gray-100">Cá</a>
+            <a href="/products/squid" class="block px-4 py-2 hover:bg-gray-100">Mực</a>
+            <a href="/products/dried" class="block px-4 py-2 hover:bg-gray-100">Hải sản khô</a>
+          </div>
+        </div>
+        <a href="/news" class="text-primary hover:text-accent">Tin tức</a>
+        <a href="/contact" class="text-primary hover:text-accent">Liên hệ</a>
+      </div>
+
+      <!-- Cart & Account -->
+      <div class="flex items-center space-x-4">
+        <button class="relative">
+          <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
+          </svg>
+          <span class="absolute -top-2 -right-2 bg-accent text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">3</span>
+        </button>
+        <button class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-accent transition-colors hidden md:block">
+          Đăng nhập
+        </button>
+      </div>
+
+      <!-- Mobile Menu Button -->
+      <button class="md:hidden text-primary" (click)="toggleMenu()">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path [attr.d]="isMenuOpen ? 'M6 18L18 6M6 6l12 12' : 'M4 6h16M4 12h16M4 18h16'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>
+      </button>
+    </div>
+    
+    <!-- Mobile Menu -->
+    <div *ngIf="isMenuOpen" class="md:hidden pt-4 pb-2 border-t mt-3">
+      <a href="/" class="block py-2 text-primary hover:text-accent">Trang chủ</a>
+      <a href="/about" class="block py-2 text-primary hover:text-accent">Giới thiệu</a>
+      <div class="py-2">
+        <div (click)="isMobileProductsOpen = !isMobileProductsOpen" class="flex justify-between items-center text-primary hover:text-accent cursor-pointer">
+          <span>Sản phẩm</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path [attr.d]="isMobileProductsOpen ? 'M19 9l-7 7-7-7' : 'M9 5l7 7-7 7'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+          </svg>
+        </div>
+        <div *ngIf="isMobileProductsOpen" class="pl-4 mt-2">
+          <a href="/products/shrimp" class="block py-2 text-primary hover:text-accent">Tôm</a>
+          <a href="/products/crab" class="block py-2 text-primary hover:text-accent">Cua</a>
+          <a href="/products/fish" class="block py-2 text-primary hover:text-accent">Cá</a>
+          <a href="/products/squid" class="block py-2 text-primary hover:text-accent">Mực</a>
+          <a href="/products/dried" class="block py-2 text-primary hover:text-accent">Hải sản khô</a>
+        </div>
+      </div>
+      <a href="/news" class="block py-2 text-primary hover:text-accent">Tin tức</a>
+      <a href="/contact" class="block py-2 text-primary hover:text-accent">Liên hệ</a>
+      <button class="mt-2 w-full bg-primary text-white px-4 py-2 rounded-lg hover:bg-accent transition-colors">
+        Đăng nhập
+      </button>
+    </div>
+  </nav>
+</header>

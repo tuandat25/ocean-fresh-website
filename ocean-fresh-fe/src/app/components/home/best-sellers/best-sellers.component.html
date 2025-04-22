@@ -1,0 +1,44 @@
+<section class="py-16">
+  <div class="container mx-auto px-4">
+    <h2 class="text-3xl font-bold text-center mb-12">Sản phẩm bán chạy</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <!-- Product Card (Dynamic) -->
+      <div *ngFor="let product of products" class="bg-white rounded-lg shadow-md overflow-hidden group">
+        <div class="relative overflow-hidden">
+          <img [src]="product.image" [alt]="product.name" 
+               class="w-full h-64 object-cover transition-transform group-hover:scale-105">
+          <div *ngIf="product.discount > 0" class="absolute top-2 right-2 bg-accent text-white px-2 py-1 rounded">-{{product.discount}}%</div>
+        </div>
+        <div class="p-4">
+          <h3 class="text-lg font-semibold mb-2">{{product.name}}</h3>
+          <div class="flex items-center mb-2">
+            <div class="text-yellow-400">
+              <span *ngFor="let star of [1,2,3,4,5]">
+                <span *ngIf="star <= product.rating">★</span>
+                <span *ngIf="star > product.rating">☆</span>
+              </span>
+            </div>
+            <span class="text-sm text-gray-500 ml-1">({{product.reviewCount}})</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <div>
+              <span class="text-accent font-bold text-xl">{{ formatPrice(product.currentPrice) }}</span>
+              <span *ngIf="product.originalPrice > product.currentPrice" class="text-gray-400 line-through text-sm ml-2">{{ formatPrice(product.originalPrice) }}</span>
+            </div>
+            <button class="bg-primary text-white p-2 rounded-full hover:bg-accent transition-colors">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path d="M12 4v16m8-8H4"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="text-center mt-10">
+      <a href="/products" class="inline-block bg-primary text-white px-6 py-3 rounded-lg hover:bg-accent transition-colors">
+        Xem tất cả sản phẩm
+      </a>
+    </div>
+  </div>
+</section>
