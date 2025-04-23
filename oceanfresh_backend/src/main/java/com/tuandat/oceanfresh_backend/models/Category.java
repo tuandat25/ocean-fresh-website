@@ -18,4 +18,9 @@ public class Category extends BaseEntity {
 
     @Column(name = "name", nullable = false)
     private String name;
+
+    private String description;
+
+    @Column(name = "image_url")
+    private String imageUrl;
 }
