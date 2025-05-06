@@ -55,6 +55,8 @@ public class ProductService implements IProductService{
                 .thumbnail(productDTO.getThumbnail())
                 .description(productDTO.getDescription())
                 .category(existingCategory)
+                .quantity(productDTO.getQuantity() != null ? productDTO.getQuantity() : 0)
+                .soldQuantity(productDTO.getSoldQuantity() != null ? productDTO.getSoldQuantity() : 0)
                 .build();
         return productRepository.save(newProduct);
     }
@@ -101,7 +103,7 @@ public class ProductService implements IProductService{
             }
 
             existingProduct.setCategory(existingCategory);
-            if(productDTO.getPrice() >= 0) {
+            if(productDTO.getPrice() != null && productDTO.getPrice() >= 0) {
                 existingProduct.setPrice(productDTO.getPrice());
             }
             if(productDTO.getDescription() != null &&
@@ -110,7 +112,13 @@ public class ProductService implements IProductService{
             }
             if(productDTO.getThumbnail() != null &&
                     !productDTO.getThumbnail().isEmpty()) {
-                existingProduct.setDescription(productDTO.getThumbnail());
+                existingProduct.setThumbnail(productDTO.getThumbnail());
+            }
+            if(productDTO.getQuantity() != null) {
+                existingProduct.setQuantity(productDTO.getQuantity());
+            }
+            if(productDTO.getSoldQuantity() != null) {
+                existingProduct.setSoldQuantity(productDTO.getSoldQuantity());
             }
             return productRepository.save(existingProduct);
         }

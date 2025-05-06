@@ -191,6 +191,33 @@ CREATE TABLE `users` (
 
 
 
+CREATE TABLE `cart` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `user_id` INT DEFAULT NULL,
+  `session_id` VARCHAR(100) DEFAULT NULL,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `user_id` (`user_id`),
+  KEY `session_id` (`session_id`),
+  CONSTRAINT `cart_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE `cart_item` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `cart_id` INT NOT NULL,
+  `product_id` INT NOT NULL,
+  `quantity` INT NOT NULL DEFAULT 1,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `cart_id` (`cart_id`),
+  KEY `product_id` (`product_id`),
+  CONSTRAINT `cart_item_ibfk_1` FOREIGN KEY (`cart_id`) REFERENCES `cart` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `cart_item_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+
 ALTER TABLE `categories`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `name` (`name`);
@@ -355,6 +382,9 @@ ALTER TABLE `users`
   ADD CONSTRAINT `users_ibfk_1` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`);
 COMMIT;
 
+ALTER TABLE `products`
+  ADD COLUMN `quantity` INT NOT NULL DEFAULT 0,
+  ADD COLUMN `sold_quantity` INT NOT NULL DEFAULT 0;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
