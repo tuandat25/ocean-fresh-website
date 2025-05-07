@@ -2,10 +2,13 @@ package com.tuandat.oceanfresh_backend.responses;
 
 import java.util.List;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.tuandat.oceanfresh_backend.models.Category;
 
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
 @Setter
@@ -27,11 +30,7 @@ public class CategoryResponse extends BaseResponse {
         CategoryResponse categoryResponse = CategoryResponse.builder()
                 .id(category.getId())
                 .name(category.getName())
-                .description(category.getDescription())
-                .imageUrl(category.getImageUrl())
                 .build();
-        categoryResponse.setCreatedAt(category.getCreatedAt());
-        categoryResponse.setUpdatedAt(category.getUpdatedAt());
         return categoryResponse;
     }
 }

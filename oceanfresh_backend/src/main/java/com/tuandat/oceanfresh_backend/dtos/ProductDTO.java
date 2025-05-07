@@ -35,5 +35,15 @@ public class ProductDTO {
     @JsonProperty("category_id")
     private Long categoryId;
 
+    @Min(value = 0, message = "Quantity must be greater than or equal to 0")
+    @Max(value = 10000, message = "Quantity must be less than or equal to 10,000")
+    @JsonProperty("quantity")
+    private Integer quantity;
+
+    @JsonProperty("sold_quantity")
+    @Min(value = 0, message = "Sold quantity must be greater than or equal to 0")
+    @Max(value = 10000, message = "Sold quantity must be less than or equal to 10,000")
+    @Builder.Default
+    private Integer soldQuantity = 0;
 }
 
