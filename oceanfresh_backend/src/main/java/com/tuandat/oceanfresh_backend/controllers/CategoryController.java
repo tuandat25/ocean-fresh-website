@@ -21,7 +21,7 @@ import com.tuandat.oceanfresh_backend.components.LocalizationUtils;
 import com.tuandat.oceanfresh_backend.dtos.CategoryDTO;
 import com.tuandat.oceanfresh_backend.models.Category;
 import com.tuandat.oceanfresh_backend.responses.ResponseObject;
-import com.tuandat.oceanfresh_backend.services.ICategoryService;
+import com.tuandat.oceanfresh_backend.services.category.ICategoryService;
 import com.tuandat.oceanfresh_backend.utils.MessageKeys;
 
 import jakarta.validation.Valid;
