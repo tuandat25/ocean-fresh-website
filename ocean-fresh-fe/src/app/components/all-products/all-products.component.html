@@ -1,0 +1,150 @@
+<div class="py-8">
+  <!-- Main layout with two column structure -->
+  <div class="container mx-auto px-4 flex flex-col md:flex-row gap-8">
+    <!-- Left column: Filters -->
+    <aside class="md:w-1/4 lg:w-1/5">
+      <div class="bg-white p-4 rounded-lg shadow-md">
+        <h3 class="text-lg font-semibold mb-4">Bộ lọc sản phẩm</h3>
+        
+        <!-- Category Filter -->
+        <div class="mb-6">
+          <h4 class="font-medium mb-3">Danh mục</h4>
+          <div class="space-y-2">
+            <div *ngFor="let category of categories">
+              <label class="flex items-center cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  [checked]="filterForm.value.category === category"
+                  (change)="selectCategory(category)"
+                  class="mr-2 h-4 w-4 accent-primary"
+                >
+                <span>{{ category }}</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Price Range Filter -->
+        <div>
+          <h4 class="font-medium mb-3">Khoảng giá</h4>
+          <div class="space-y-2">
+            <div *ngFor="let range of priceRanges">
+              <label class="flex items-center cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  [checked]="filterForm.value.priceRange === range.value"
+                  (change)="selectPriceRange(range.value)"
+                  class="mr-2 h-4 w-4 accent-primary"
+                >
+                <span>{{ range.label }}</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Right column: Products -->
+    <main class="md:w-3/4 lg:w-4/5">
+      <!-- Sort options and results count -->
+      <div class="flex flex-col sm:flex-row justify-start items-center sm:items-center mb-6">
+        <p class="text-black-600 mb-4 sm:mb-0">
+          Sắp xếp:
+        </p>
+        
+        <!-- Horizontal sort buttons instead of dropdown -->
+        <div class="flex flex-wrap gap-3">
+          <button 
+            *ngFor="let option of sortOptions"
+            (click)="sortProducts(option.value)"
+            class="text-sm font-medium px-2 py-1 transition-colors"
+            [ngClass]="{
+              'text-primary border-b-2 border-primary': currentSort === option.value,
+              'text-gray-600 hover:text-primary': currentSort !== option.value
+            }"
+          >
+            {{ option.label }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Product grid -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div *ngFor="let product of pagedProducts" class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
+          <div class="relative overflow-hidden">
+            <img [src]="product.image" [alt]="product.name" class="w-full h-56 object-cover object-center">
+            <div *ngIf="product.discount" class="absolute top-2 right-2 bg-accent text-white text-sm font-medium px-2 py-1 rounded">
+              -{{ product.discount }}%
+            </div>
+          </div>
+          
+          <div class="p-4">
+            <h3 class="text-lg font-semibold mb-1 truncate" [title]="product.name">{{ product.name }}</h3>
+            <p class="text-sm text-gray-500 mb-2">{{ product.category }}</p>
+            
+            <div class="flex items-center mb-2">
+              <div class="text-yellow-400 flex">
+                <span *ngFor="let star of [1,2,3,4,5]">
+                  <span *ngIf="star <= Math.floor(product.rating)" class="text-yellow-400">★</span>
+                  <span *ngIf="star > Math.ceil(product.rating)" class="text-gray-300">★</span>
+                  <span *ngIf="star > Math.floor(product.rating) && star <= Math.ceil(product.rating)" class="text-yellow-400">★</span>
+                </span>
+              </div>
+              <span class="text-sm text-gray-500 ml-1">({{ product.reviewCount }})</span>
+            </div>
+            
+            <div class="flex items-center justify-between">
+              <div>
+                <span class="text-primary font-bold text-lg">{{ formatPrice(product.price) }}</span>
+              </div>
+              <button class="bg-primary hover:bg-accent text-white p-2 rounded-full transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div *ngIf="totalPages > 1" class="mt-10 flex justify-center">
+        <nav class="inline-flex rounded-md shadow-sm -space-x-px">
+          <button 
+            [disabled]="currentPage === 1"
+            (click)="goToPage(currentPage - 1)"
+            class="px-3 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            &laquo; Prev
+          </button>
+          
+          <ng-container *ngFor="let page of [].constructor(totalPages); let i = index">
+            <button 
+              *ngIf="totalPages <= 7 || i === 0 || i === totalPages - 1 || (i >= currentPage - 2 && i <= currentPage + 2)"
+              (click)="goToPage(i + 1)"
+              [class]="'px-3 py-2 border border-gray-300 text-sm font-medium ' + (currentPage === i + 1 ? 'bg-primary text-white' : 'bg-white text-gray-500 hover:bg-gray-50')"
+            >
+              {{ i + 1 }}
+            </button>
+            
+            <span *ngIf="totalPages > 7 && i === currentPage + 3 && i < totalPages - 1" class="px-3 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500">
+              ...
+            </span>
+            
+            <span *ngIf="totalPages > 7 && i === currentPage - 3 && i > 0" class="px-3 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500">
+              ...
+            </span>
+          </ng-container>
+          
+          <button 
+            [disabled]="currentPage === totalPages"
+            (click)="goToPage(currentPage + 1)"
+            class="px-3 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Next &raquo;
+          </button>
+        </nav>
+      </div>
+    </main>
+  </div>
+</div>

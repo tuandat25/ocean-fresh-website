@@ -1,0 +1,80 @@
+/* All Products Component Styles */
+
+/* General page layout */
+:host {
+  display: block;
+}
+
+/* Sticky filters */
+.sticky {
+  position: sticky;
+  top: 24px;
+}
+
+/* Checkbox styles (accent color) */
+input[type="checkbox"].accent-primary {
+  accent-color: var(--color-primary, #0891b2);
+}
+
+/* Product Card Hover Effects */
+.product-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.product-card:hover {
+  transform: translateY(-4px);
+}
+
+/* Sort button active style */
+.sort-button-active {
+  color: var(--color-primary, #0891b2);
+  border-bottom: 2px solid var(--color-primary, #0891b2);
+}
+
+/* Responsive grid adjustments */
+@media (max-width: 640px) {
+  .product-grid {
+    grid-template-columns: repeat(1, 1fr);
+  }
+}
+
+@media (min-width: 641px) and (max-width: 768px) {
+  .product-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .product-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1025px) {
+  .product-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Pagination active state */
+.pagination-active {
+  background-color: var(--color-primary, #0891b2);
+  color: white;
+}
+
+/* Price with discount styling */
+.discounted-price {
+  display: flex;
+  flex-direction: column;
+}
+
+.original-price {
+  text-decoration: line-through;
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+/* Rating stars alignment */
+.rating-stars {
+  display: inline-flex;
+}
