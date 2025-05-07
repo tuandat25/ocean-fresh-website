@@ -2,6 +2,8 @@ import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { ProductService } from './product.service';
+import { HttpClientModule } from '@angular/common/http';
 
 interface Product {
   id: number;
@@ -32,7 +34,7 @@ interface SortOption {
   templateUrl: './all-products.component.html',
   styleUrls: ['./all-products.component.scss'],
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule]
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, HttpClientModule]
 })
 export class AllProductsComponent implements OnInit {
   // Mock data
@@ -74,7 +76,7 @@ export class AllProductsComponent implements OnInit {
   // For use in template
   Math = Math;
   
-  constructor(private fb: FormBuilder) {
+  constructor(private fb: FormBuilder, private productService: ProductService) {
     this.filterForm = this.fb.group({
       category: [''],
       priceRange: ['']
@@ -82,46 +84,15 @@ export class AllProductsComponent implements OnInit {
   }
   
   ngOnInit(): void {
-    this.generateMockProducts();
-    this.applyFiltersAndSort();
-    
+    this.productService.getProducts().subscribe((products) => {
+      // Nếu API trả về dateAdded là string, cần chuyển sang Date
+      this.products = products.map(p => ({ ...p, dateAdded: new Date(p.dateAdded) }));
+      this.applyFiltersAndSort();
+    });
     // Subscribe to form changes
     this.filterForm.valueChanges.subscribe(() => {
       this.applyFiltersAndSort();
     });
-  }
-  
-  generateMockProducts(): void {
-    // Generate 150 mock products
-    const imageBaseUrls = [
-      'https://images.unsplash.com/photo-1544551763-77ef2d0cfc6c',
-      'https://images.unsplash.com/photo-1534948216015-843149f72be3',
-      'https://images.unsplash.com/photo-1578735799461-85ee44851697',
-      'https://images.unsplash.com/photo-1565794462772-817c6c8ce7b9',
-      'https://images.unsplash.com/photo-1490897343135-a018124f5714'
-    ];
-    
-    for (let i = 1; i <= 150; i++) {
-      const categoryIndex = Math.floor(Math.random() * this.categories.length);
-      const randomPrice = Math.floor(Math.random() * 800000) + 50000;
-      const hasDiscount = Math.random() > 0.7;
-      const discountPercentage = hasDiscount ? Math.floor(Math.random() * 30) + 5 : 0;
-      const daysAgo = Math.floor(Math.random() * 60);
-      const date = new Date();
-      date.setDate(date.getDate() - daysAgo);
-      
-      this.products.push({
-        id: i,
-        name: `Sản phẩm ${this.categories[categoryIndex]} ${i}`,
-        category: this.categories[categoryIndex],
-        price: randomPrice,
-        discount: hasDiscount ? discountPercentage : undefined,
-        rating: 3 + Math.random() * 2,
-        reviewCount: Math.floor(Math.random() * 200),
-        image: `${imageBaseUrls[Math.floor(Math.random() * imageBaseUrls.length)]}?v=${i}`,
-        dateAdded: date
-      });
-    }
   }
   
   applyFiltersAndSort(): void {
