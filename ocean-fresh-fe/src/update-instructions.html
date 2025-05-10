@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hướng dẫn thay đổi</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; margin: 20px; }
+        pre { background: #f4f4f4; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        h2 { color: #333; margin-top: 30px; }
+        .file-path { color: #666; font-style: italic; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Hướng dẫn cập nhật để kết nối API</h1>
+    
+    <h2>1. Sử dụng ProductService từ thư mục services</h2>
+    <div class="file-path">c:\Users\dat20\Desktop\OceanFreshWebsite\ocean-fresh-fe\src\app\components\all-products\all-products.component.ts</div>
+    <p>Thay đổi import path từ:</p>
+    <pre>import { ProductService, Product } from './product.service';</pre>
+    <p>Thành:</p>
+    <pre>import { ProductService, Product } from '../services/product.service';</pre>
+
+    <h2>2. Cập nhật phương thức loadProducts</h2>
+    <pre>
+loadProducts(): void {
+  this.isLoading = true;
+  this.error = null;
+  
+  this.subscriptions.add(
+    this.productService.getProducts(this.currentPage - 1, this.itemsPerPage)
+      .pipe(
+        finalize(() => {
+          this.isLoading = false;
+        })
+      )
+      .subscribe({
+        next: (data) => {
+          this.products = data.products;
+          this.totalPages = data.totalPages;
+          this.applyFiltersAndSort();
+        },
+        error: (err) => {
+          this.error = 'Không thể tải dữ liệu sản phẩm. Vui lòng thử lại sau.';
+          console.error('Lỗi khi tải sản phẩm:', err);
+        }
+      })
+  );
+}
+    </pre>
+
+    <h2>3. Cập nhật phương thức sortProducts</h2>
+    <pre>
+sortProducts(sortType: string): void {
+  this.currentSort = sortType;
+  
+  switch (sortType) {
+    case 'name-asc':
+      this.filteredProducts.sort((a, b) => a.name.localeCompare(b.name));
+      break;
+    case 'name-desc':
+      this.filteredProducts.sort((a, b) => b.name.localeCompare(a.name));
+      break;
+    case 'price-asc':
+      this.filteredProducts.sort((a, b) => a.price - b.price);
+      break;
+    case 'price-desc':
+      this.filteredProducts.sort((a, b) => b.price - a.price);
+      break;
+    case 'newest':
+      this.filteredProducts.sort((a, b) => {
+        // Đảm bảo sử dụng created_at từ API nếu dateAdded không có
+        const dateA = new Date(a.dateAdded || a.created_at);
+        const dateB = new Date(b.dateAdded || b.created_at);
+        return dateB.getTime() - dateA.getTime();
+      });
+      break;
+  }
+  
+  this.updatePagedProducts();
+}
+    </pre>
+
+    <h2>4. Cập nhật phương thức goToPage</h2>
+    <pre>
+goToPage(page: number): void {
+  if (this.currentPage === page) return; // Tránh gọi API lại nếu đang ở trang hiện tại
+  
+  this.currentPage = page;
+  this.loadProducts(); // Gọi API để tải trang mới
+}
+    </pre>
+
+    <h2>5. Cập nhật phương thức refreshProducts</h2>
+    <pre>
+refreshProducts(): void {
+  this.productService.clearCache(); // Xóa cache để lấy dữ liệu mới nhất
+  this.loadProducts();
+}
+    </pre>
+
+    <h2>Cập nhật đường dẫn API trong product.service.ts</h2>
+    <div class="file-path">c:\Users\dat20\Desktop\OceanFreshWebsite\ocean-fresh-fe\src\app\components\services\product.service.ts</div>
+    <p>Đây là URL API của bạn:</p>
+    <pre>private apiUrl = 'http://localhost:8088/api/v1/products';</pre>
+</body>
+</html>

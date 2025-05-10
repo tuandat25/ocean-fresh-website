@@ -2,10 +2,12 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { ProductService, Product } from './product.service';
-import { HttpClientModule } from '@angular/common/http';
+import { ProductService, Product } from '../services/product.service';
 import { Subscription } from 'rxjs';
 import { finalize } from 'rxjs/operators';
+import { HttpClientModule } from '@angular/common/http';
+
+// Using the Product interface from ProductService
 
 interface PriceRange {
   label: string;
@@ -32,10 +34,6 @@ export class AllProductsComponent implements OnInit, OnDestroy {
   filteredProducts: Product[] = [];
   pagedProducts: Product[] = [];
   
-  // Loading state
-  isLoading = false;
-  error: string | null = null;
-  
   // Filter options
   categories: string[] = ['Cá', 'Tôm', 'Cua & Ghẹ', 'Mực & Bạch Tuộc', 'Ốc & Hàu', 'Sò & Nghêu', 'Cá Khô'];
   
@@ -57,30 +55,34 @@ export class AllProductsComponent implements OnInit, OnDestroy {
   ];
   
   // Reactive form for filters
-  filterForm: FormGroup;
-  
-  // Pagination
+  filterForm: FormGroup;    // Pagination
   currentPage = 1;
-  itemsPerPage = 10;
+  itemsPerPage = 12; // Thiết lập cho phù hợp với limit API mặc định
   totalPages = 1;
   
   // Sorting
   currentSort = 'newest';
   
+  // Loading & error states
+  isLoading = false;
+  error: string | null = null;
+  
   // For use in template
   Math = Math;
   
-  // Subscriptions
-  private subscriptions: Subscription = new Subscription();
+  // Subscription management
+  private subscriptions = new Subscription();
   
-  constructor(private fb: FormBuilder, private productService: ProductService) {
+  constructor(
+    private fb: FormBuilder,
+    private productService: ProductService
+  ) {
     this.filterForm = this.fb.group({
       category: [''],
       priceRange: ['']
     });
   }
-  
-  ngOnInit(): void {
+    ngOnInit(): void {
     this.loadProducts();
     
     // Subscribe to form changes
@@ -92,39 +94,46 @@ export class AllProductsComponent implements OnInit, OnDestroy {
   }
   
   ngOnDestroy(): void {
-    // Cleanup subscriptions to prevent memory leaks
+    // Unsubscribe to avoid memory leaks
     this.subscriptions.unsubscribe();
-  }
-  
-  loadProducts(): void {
+  }  loadProducts(): void {
     this.isLoading = true;
     this.error = null;
     
+    console.log('Loading page:', this.currentPage, 'with items per page:', this.itemsPerPage);
+    
+    // Chuyển đổi từ currentPage sang page index (page 1 -> index 0)
+    const pageIndex = this.currentPage - 1;
+    
+    // Hiển thị URL sẽ được gọi để debug
+    console.log(`API URL will be: http://localhost:8088/api/v1/products?page=${pageIndex}&limit=${this.itemsPerPage}`);
+    
     this.subscriptions.add(
-      this.productService.getProducts()
+      this.productService.getProducts(pageIndex, this.itemsPerPage)
         .pipe(
           finalize(() => {
             this.isLoading = false;
           })
         )
         .subscribe({
-          next: (products) => {
-            // Chuyển đổi dateAdded từ string sang Date
-            this.products = products.map(p => ({
-              ...p,
-              dateAdded: p.dateAdded instanceof Date ? p.dateAdded : new Date(p.dateAdded)
-            }));
+          next: (data) => {
+            console.log('Products received:', data.products);
+            console.log('Total pages:', data.totalPages);
+            this.products = data.products;
+            this.totalPages = data.totalPages;
+            // Không cần phân trang lại vì chúng ta đang dùng phân trang server-side
+            this.pagedProducts = this.products;
+            // Áp dụng filter và sort 
             this.applyFiltersAndSort();
           },
           error: (err) => {
-            this.error = 'Không thể tải dữ liệu sản phẩm. Vui lòng thử lại sau.';
-            console.error('Lỗi khi tải sản phẩm:', err);
+            this.error = 'Không thể tải dữ liệu sản phẩm';
+            console.error('Error loading products:', err);
           }
         })
     );
   }
-  
-  applyFiltersAndSort(): void {
+    applyFiltersAndSort(): void {
     const { category, priceRange } = this.filterForm.value;
     
     // Apply filters
@@ -152,11 +161,11 @@ export class AllProductsComponent implements OnInit, OnDestroy {
     // Apply sort
     this.sortProducts(this.currentSort);
     
-    // Reset to first page when filters change
-    this.goToPage(1);
+    // Nếu chúng ta sử dụng bộ lọc, lúc này chúng ta cần xử lý phân trang phía client
+    // vì server không biết về bộ lọc của chúng ta
+    this.pagedProducts = this.filteredProducts;
   }
-  
-  sortProducts(sortType: string): void {
+    sortProducts(sortType: string): void {
     this.currentSort = sortType;
     
     switch (sortType) {
@@ -173,11 +182,10 @@ export class AllProductsComponent implements OnInit, OnDestroy {
         this.filteredProducts.sort((a, b) => b.price - a.price);
         break;
       case 'newest':
-        // Đảm bảo dateAdded luôn là Date
         this.filteredProducts.sort((a, b) => {
-          const dateA = a.dateAdded instanceof Date ? a.dateAdded : new Date(a.dateAdded);
-          const dateB = b.dateAdded instanceof Date ? b.dateAdded : new Date(b.dateAdded);
-          return dateB.getTime() - dateA.getTime();
+          const dateA = a.dateAdded instanceof Date ? a.dateAdded.getTime() : 0;
+          const dateB = b.dateAdded instanceof Date ? b.dateAdded.getTime() : 0;
+          return dateB - dateA;
         });
         break;
     }
@@ -205,30 +213,32 @@ export class AllProductsComponent implements OnInit, OnDestroy {
     } else {
       this.filterForm.patchValue({ priceRange: range });
     }
-  }
-  
-  goToPage(page: number): void {
+  }  goToPage(page: number): void {
+    if (page < 1 || page > this.totalPages || page === this.currentPage) {
+      return; // Không làm gì nếu trang không hợp lệ hoặc đang ở trang đó
+    }
+    
+    console.log('Navigating to page:', page);
     this.currentPage = page;
-    this.updatePagedProducts();
+    
+    // Tải lại sản phẩm với trang mới từ server
+    this.loadProducts();
   }
   
   updatePagedProducts(): void {
-    const startIndex = (this.currentPage - 1) * this.itemsPerPage;
-    this.pagedProducts = this.filteredProducts.slice(startIndex, startIndex + this.itemsPerPage);
-    this.totalPages = Math.ceil(this.filteredProducts.length / this.itemsPerPage);
+    // Đối với phân trang server-side, chúng ta không cần cắt dữ liệu
+    // vì server đã trả về đúng dữ liệu cho trang hiện tại
+    this.pagedProducts = this.filteredProducts;
   }
   
   formatPrice(price: number): string {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
   }
-  
-  // Xử lý lỗi tải ảnh
-  onImageError(event: Event): void {
-    (event.target as HTMLImageElement).src = 'assets/images/placeholder.png';
-  }
 
-  // Tải lại dữ liệu
   refreshProducts(): void {
+    // Clear service cache
+    this.productService.clearCache();
+    // Reload products
     this.loadProducts();
   }
 }
