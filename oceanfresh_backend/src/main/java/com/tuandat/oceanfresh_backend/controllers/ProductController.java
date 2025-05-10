@@ -35,9 +35,9 @@ import com.tuandat.oceanfresh_backend.models.Product;
 import com.tuandat.oceanfresh_backend.models.ProductAttributeValue;
 import com.tuandat.oceanfresh_backend.models.ProductImage;
 import com.tuandat.oceanfresh_backend.responses.ProductAttributeValueResponse;
-import com.tuandat.oceanfresh_backend.responses.ProductResponse;
 import com.tuandat.oceanfresh_backend.responses.ResponseObject;
 import com.tuandat.oceanfresh_backend.responses.product.ProductListResponse;
+import com.tuandat.oceanfresh_backend.responses.product.ProductResponse;
 import com.tuandat.oceanfresh_backend.services.product.IProductService;
 import com.tuandat.oceanfresh_backend.services.product.attribute.IProductAttributeValueService;
 

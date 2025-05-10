@@ -12,7 +12,7 @@ import com.tuandat.oceanfresh_backend.dtos.ProductImageDTO;
 import com.tuandat.oceanfresh_backend.dtos.ProductUpdateDTO;
 import com.tuandat.oceanfresh_backend.models.Product;
 import com.tuandat.oceanfresh_backend.models.ProductImage;
-import com.tuandat.oceanfresh_backend.responses.ProductResponse;
+import com.tuandat.oceanfresh_backend.responses.product.ProductResponse;
 
 public interface IProductService {
     Product createProduct(ProductDTO productDTO) throws Exception;

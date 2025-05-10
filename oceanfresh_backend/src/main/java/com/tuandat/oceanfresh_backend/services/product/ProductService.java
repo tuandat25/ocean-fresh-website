@@ -36,7 +36,7 @@ import com.tuandat.oceanfresh_backend.repositories.CategoryRepository;
 import com.tuandat.oceanfresh_backend.repositories.ProductAttributeValueRepository;
 import com.tuandat.oceanfresh_backend.repositories.ProductImageRepository;
 import com.tuandat.oceanfresh_backend.repositories.ProductRepository;
-import com.tuandat.oceanfresh_backend.responses.ProductResponse;
+import com.tuandat.oceanfresh_backend.responses.product.ProductResponse;
 
 import lombok.RequiredArgsConstructor;
 
