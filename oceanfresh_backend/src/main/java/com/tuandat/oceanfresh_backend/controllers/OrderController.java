@@ -14,13 +14,18 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.tuandat.oceanfresh_backend.dtos.OrderDTO;
+import com.tuandat.oceanfresh_backend.responses.OrderResponse;
+import com.tuandat.oceanfresh_backend.services.orders.IOrderService;
 
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("${api.prefix}/orders")
 public class OrderController {
+    private final IOrderService orderService;
     @PostMapping("")
     public ResponseEntity<?> createOrder(
             @Valid @RequestBody OrderDTO orderDTO,
@@ -35,6 +40,7 @@ public class OrderController {
             }
             // Call the service to create the order
             // Order order = orderService.createOrder(orderDTO);
+            OrderResponse orderResponse = orderService.createOrder(orderDTO);// Replace with actual order response
             return ResponseEntity.ok("Create order successfully");
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Internal server error: " + e.getMessage());

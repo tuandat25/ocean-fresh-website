@@ -35,10 +35,10 @@ public class Product extends BaseEntity{
     private String description;
 
     @Column(name = "quantity", nullable = false)
-    private Integer quantity = 0;
+    private Long quantity = 0L;
 
     @Column(name = "sold_quantity", nullable = false)
-    private Integer soldQuantity = 0;
+    private Long soldQuantity = 0L;
 
     @ManyToOne
     @JoinColumn(name = "category_id")
@@ -48,9 +48,14 @@ public class Product extends BaseEntity{
             cascade = CascadeType.ALL,
             fetch = FetchType.LAZY)
     private List<ProductImage> productImages;
-
+    
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
     @JsonManagedReference
+    @Builder.Default
     private List<Comment> comments = new ArrayList<>();
+    
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<ProductAttributeValue> attributeValues = new ArrayList<>();
 
 }

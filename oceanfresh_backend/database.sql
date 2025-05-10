@@ -385,6 +385,42 @@ COMMIT;
 ALTER TABLE `products`
   ADD COLUMN `quantity` INT NOT NULL DEFAULT 0,
   ADD COLUMN `sold_quantity` INT NOT NULL DEFAULT 0;
+
+-- Tạo bảng attributes (thuộc tính)
+CREATE TABLE `attributes` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT 'Tên thuộc tính (ví dụ: Khối lượng, Số gói, ...)',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+
+-- Tạo bảng product_attribute_values (giá trị thuộc tính của biến thể sản phẩm)
+CREATE TABLE `product_attribute_values` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `product_id` int NOT NULL,
+  `attribute_id` int NOT NULL,
+  `value` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT 'Giá trị thuộc tính (ví dụ: 1kg, 2kg, 10 gói, ...)',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_variant_attribute` (`product_id`, `attribute_id`),
+  KEY `attribute_id` (`attribute_id`),
+  CONSTRAINT `product_attribute_values_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `product_attribute_values_ibfk_2` FOREIGN KEY (`attribute_id`) REFERENCES `attributes` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Sửa đổi bảng cart_item để sử dụng product_variant thay vì product
+-- ALTER TABLE `cart_item`
+--   ADD COLUMN `product_variant_id` INT DEFAULT NULL,
+--   ADD CONSTRAINT `cart_item_ibfk_3` FOREIGN KEY (`product_variant_id`) REFERENCES `product_variants` (`id`);
+
+-- Sửa đổi bảng order_details để sử dụng product_variant thay vì product
+-- ALTER TABLE `order_details`
+--   ADD COLUMN `product_variant_id` INT DEFAULT NULL,
+--   ADD CONSTRAINT `order_details_ibfk_3` FOREIGN KEY (`product_variant_id`) REFERENCES `product_variants` (`id`);
+
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;

@@ -9,6 +9,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.tuandat.oceanfresh_backend.dtos.ProductDTO;
 import com.tuandat.oceanfresh_backend.dtos.ProductImageDTO;
+import com.tuandat.oceanfresh_backend.dtos.ProductUpdateDTO;
 import com.tuandat.oceanfresh_backend.models.Product;
 import com.tuandat.oceanfresh_backend.models.ProductImage;
 import com.tuandat.oceanfresh_backend.responses.ProductResponse;
@@ -26,6 +27,12 @@ public interface IProductService {
             ProductImageDTO productImageDTO) throws Exception;
 
     List<Product> findProductsByIds(List<Long> productIds);
-    String storeFile(MultipartFile file) throws IOException;
-    void deleteFile(String filename) throws IOException;
+    String storeFile(MultipartFile file) throws IOException;    void deleteFile(String filename) throws IOException;
+      // Thêm các phương thức làm việc với thuộc tính sản phẩm
+    Product addProductAttribute(Long productId, Long attributeId, String value) throws Exception;
+    Product updateProductAttribute(Long productId, Long attributeId, String value) throws Exception;
+    Product removeProductAttribute(Long productId, Long attributeId) throws Exception;    Product updateProductWithAttributes(Long productId, ProductDTO productDTO, List<Long> attributeIds, List<String> attributeValues) throws Exception;
+    
+    // Cập nhật sản phẩm với các thuộc tính động theo tên
+    Product updateProductWithDynamicAttributes(Long productId, ProductUpdateDTO productUpdateDTO) throws Exception;
     }
