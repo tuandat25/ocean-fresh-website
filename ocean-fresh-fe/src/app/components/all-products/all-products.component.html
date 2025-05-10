@@ -66,13 +66,28 @@
             {{ option.label }}
           </button>
         </div>
+      </div>      <!-- Product grid -->
+      <div *ngIf="isLoading" class="flex justify-center items-center py-16">
+        <div class="w-16 h-16 border-t-4 border-primary border-solid rounded-full animate-spin"></div>
       </div>
 
-      <!-- Product grid -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+      <div *ngIf="error" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+        <p>{{ error }}</p>
+        <button (click)="refreshProducts()" class="mt-2 bg-primary text-white py-1 px-4 rounded-md hover:bg-accent">
+          Thử lại
+        </button>
+      </div>
+
+      <div *ngIf="!isLoading && !error" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         <div *ngFor="let product of pagedProducts" class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
           <div class="relative overflow-hidden">
-            <img [src]="product.image" [alt]="product.name" class="w-full h-56 object-cover object-center">
+            <img 
+              [src]="product.image" 
+              [alt]="product.name" 
+              class="w-full h-56 object-cover object-center"
+              loading="lazy"
+              (error)="onImageError($event)"
+            >
             <div *ngIf="product.discount" class="absolute top-2 right-2 bg-accent text-white text-sm font-medium px-2 py-1 rounded">
               -{{ product.discount }}%
             </div>

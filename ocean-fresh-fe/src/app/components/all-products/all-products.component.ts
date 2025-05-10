@@ -1,21 +1,11 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { ProductService } from './product.service';
+import { ProductService, Product } from './product.service';
 import { HttpClientModule } from '@angular/common/http';
-
-interface Product {
-  id: number;
-  name: string;
-  category: string;
-  price: number;
-  discount?: number;
-  rating: number;
-  reviewCount: number;
-  image: string;
-  dateAdded: Date;
-}
+import { Subscription } from 'rxjs';
+import { finalize } from 'rxjs/operators';
 
 interface PriceRange {
   label: string;
@@ -36,11 +26,15 @@ interface SortOption {
   standalone: true,
   imports: [CommonModule, FormsModule, ReactiveFormsModule, HttpClientModule]
 })
-export class AllProductsComponent implements OnInit {
-  // Mock data
+export class AllProductsComponent implements OnInit, OnDestroy {
+  // Products data
   products: Product[] = [];
   filteredProducts: Product[] = [];
   pagedProducts: Product[] = [];
+  
+  // Loading state
+  isLoading = false;
+  error: string | null = null;
   
   // Filter options
   categories: string[] = ['Cá', 'Tôm', 'Cua & Ghẹ', 'Mực & Bạch Tuộc', 'Ốc & Hàu', 'Sò & Nghêu', 'Cá Khô'];
@@ -76,6 +70,9 @@ export class AllProductsComponent implements OnInit {
   // For use in template
   Math = Math;
   
+  // Subscriptions
+  private subscriptions: Subscription = new Subscription();
+  
   constructor(private fb: FormBuilder, private productService: ProductService) {
     this.filterForm = this.fb.group({
       category: [''],
@@ -84,15 +81,47 @@ export class AllProductsComponent implements OnInit {
   }
   
   ngOnInit(): void {
-    this.productService.getProducts().subscribe((products) => {
-      // Nếu API trả về dateAdded là string, cần chuyển sang Date
-      this.products = products.map(p => ({ ...p, dateAdded: new Date(p.dateAdded) }));
-      this.applyFiltersAndSort();
-    });
+    this.loadProducts();
+    
     // Subscribe to form changes
-    this.filterForm.valueChanges.subscribe(() => {
-      this.applyFiltersAndSort();
-    });
+    this.subscriptions.add(
+      this.filterForm.valueChanges.subscribe(() => {
+        this.applyFiltersAndSort();
+      })
+    );
+  }
+  
+  ngOnDestroy(): void {
+    // Cleanup subscriptions to prevent memory leaks
+    this.subscriptions.unsubscribe();
+  }
+  
+  loadProducts(): void {
+    this.isLoading = true;
+    this.error = null;
+    
+    this.subscriptions.add(
+      this.productService.getProducts()
+        .pipe(
+          finalize(() => {
+            this.isLoading = false;
+          })
+        )
+        .subscribe({
+          next: (products) => {
+            // Chuyển đổi dateAdded từ string sang Date
+            this.products = products.map(p => ({
+              ...p,
+              dateAdded: p.dateAdded instanceof Date ? p.dateAdded : new Date(p.dateAdded)
+            }));
+            this.applyFiltersAndSort();
+          },
+          error: (err) => {
+            this.error = 'Không thể tải dữ liệu sản phẩm. Vui lòng thử lại sau.';
+            console.error('Lỗi khi tải sản phẩm:', err);
+          }
+        })
+    );
   }
   
   applyFiltersAndSort(): void {
@@ -144,7 +173,12 @@ export class AllProductsComponent implements OnInit {
         this.filteredProducts.sort((a, b) => b.price - a.price);
         break;
       case 'newest':
-        this.filteredProducts.sort((a, b) => b.dateAdded.getTime() - a.dateAdded.getTime());
+        // Đảm bảo dateAdded luôn là Date
+        this.filteredProducts.sort((a, b) => {
+          const dateA = a.dateAdded instanceof Date ? a.dateAdded : new Date(a.dateAdded);
+          const dateB = b.dateAdded instanceof Date ? b.dateAdded : new Date(b.dateAdded);
+          return dateB.getTime() - dateA.getTime();
+        });
         break;
     }
     
@@ -186,5 +220,15 @@ export class AllProductsComponent implements OnInit {
   
   formatPrice(price: number): string {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
+  }
+  
+  // Xử lý lỗi tải ảnh
+  onImageError(event: Event): void {
+    (event.target as HTMLImageElement).src = 'assets/images/placeholder.png';
+  }
+
+  // Tải lại dữ liệu
+  refreshProducts(): void {
+    this.loadProducts();
   }
 }
