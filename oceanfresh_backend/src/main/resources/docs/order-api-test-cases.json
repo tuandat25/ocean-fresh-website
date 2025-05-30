@@ -1,0 +1,486 @@
+{
+  "apiTestCases": {
+    "title": "Order Management API Test Cases",
+    "description": "Comprehensive test cases for Order endpoints with Vietnamese e-commerce system",
+    "baseUrl": "http://localhost:8088/api/v1/orders",
+    "version": "1.0.0",
+    "testCases": [
+      {
+        "id": "ORDER_001",
+        "name": "Create Order - Success Case",
+        "description": "Tạo đơn hàng thành công với thông tin hợp lệ",
+        "endpoint": "POST /api/v1/orders",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {jwt_token}"
+        },
+        "requestBody": {
+          "userId": 1,
+          "fullname": "Nguyễn Văn An",
+          "email": "nguyenvanan@gmail.com",
+          "phoneNumber": "0987654321",
+          "shippingAddress": "123 Đường ABC, Quận 1, TP.HCM",
+          "note": "Giao hàng vào buổi sáng",
+          "shippingMethod": "STANDARD",
+          "shippingDateExpected": "2025-06-02",
+          "paymentMethod": "COD",
+          "couponCode": "NEWCUSTOMER10",
+          "orderItems": [
+            {
+              "productVariantId": 1,
+              "quantity": 2,
+              "unitPrice": 25000
+            },
+            {
+              "productVariantId": 2,
+              "quantity": 1,
+              "unitPrice": 35000
+            }
+          ]
+        },
+        "expectedResponse": {
+          "status": 201,
+          "body": {
+            "status": "SUCCESS",
+            "message": "Tạo đơn hàng thành công",
+            "data": {
+              "id": "int",
+              "orderCode": "string (OFyyyyMMddHHmmss)",
+              "userId": 1,
+              "fullName": "Nguyễn Văn An",
+              "email": "nguyenvanan@gmail.com",
+              "phoneNumber": "0987654321",
+              "shippingAddress": "123 Đường ABC, Quận 1, TP.HCM",
+              "note": "Giao hàng vào buổi sáng",
+              "orderDate": "datetime",
+              "status": "PENDING",
+              "subtotalAmount": 85000,
+              "shippingFee": 30000,
+              "discountAmount": 8500,
+              "totalAmount": 106500,
+              "shippingMethod": "STANDARD",
+              "shippingDateExpected": "2025-06-02",
+              "paymentMethod": "COD",
+              "paymentStatus": "UNPAID",
+              "couponCode": "NEWCUSTOMER10",
+              "orderDetails": [
+                {
+                  "id": "int",
+                  "productVariantId": 1,
+                  "productVariantSku": "string",
+                  "productName": "string",
+                  "variantName": "string",
+                  "quantity": 2,
+                  "priceAtOrder": 25000,
+                  "totalLineAmount": 50000
+                }
+              ],
+              "totalItems": 2,
+              "totalQuantity": 3
+            }
+          }
+        }
+      },
+      {
+        "id": "ORDER_002",
+        "name": "Create Order - Guest User",
+        "description": "Tạo đơn hàng cho khách vãng lai (không có userId)",
+        "endpoint": "POST /api/v1/orders",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "requestBody": {
+          "userId": null,
+          "fullname": "Khách Vãng Lai",
+          "email": "guest@example.com",
+          "phoneNumber": "0912345678",
+          "shippingAddress": "456 Đường XYZ, Quận 2, TP.HCM",
+          "paymentMethod": "VNPAY",
+          "orderItems": [
+            {
+              "productVariantId": 3,
+              "quantity": 1,
+              "unitPrice": 45000
+            }
+          ]
+        },
+        "expectedResponse": {
+          "status": 201,
+          "body": {
+            "status": "SUCCESS",
+            "message": "Tạo đơn hàng thành công",
+            "data": {
+              "userId": null,
+              "fullName": "Khách Vãng Lai",
+              "paymentStatus": "UNPAID",
+              "totalAmount": 75000
+            }
+          }
+        }
+      },
+      {
+        "id": "ORDER_003",
+        "name": "Create Order - Insufficient Stock",
+        "description": "Tạo đơn hàng với số lượng vượt quá tồn kho",
+        "endpoint": "POST /api/v1/orders",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {jwt_token}"
+        },
+        "requestBody": {
+          "userId": 1,
+          "fullname": "Nguyễn Văn An",
+          "email": "nguyenvanan@gmail.com",
+          "phoneNumber": "0987654321",
+          "shippingAddress": "123 Đường ABC, Quận 1, TP.HCM",
+          "paymentMethod": "COD",
+          "orderItems": [
+            {
+              "productVariantId": 1,
+              "quantity": 1000,
+              "unitPrice": 25000
+            }
+          ]
+        },
+        "expectedResponse": {
+          "status": 400,
+          "body": {
+            "status": "ERROR",
+            "message": "Không đủ hàng cho sản phẩm {sku}. Còn lại: {stock}, Yêu cầu: 1000",
+            "data": null
+          }
+        }
+      },
+      {
+        "id": "ORDER_004",
+        "name": "Create Order - Invalid Coupon",
+        "description": "Tạo đơn hàng với mã giảm giá không hợp lệ",
+        "endpoint": "POST /api/v1/orders",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {jwt_token}"
+        },
+        "requestBody": {
+          "userId": 1,
+          "fullname": "Nguyễn Văn An",
+          "email": "nguyenvanan@gmail.com",
+          "phoneNumber": "0987654321",
+          "shippingAddress": "123 Đường ABC, Quận 1, TP.HCM",
+          "paymentMethod": "COD",
+          "couponCode": "INVALID_COUPON",
+          "orderItems": [
+            {
+              "productVariantId": 1,
+              "quantity": 1,
+              "unitPrice": 25000
+            }
+          ]
+        },
+        "expectedResponse": {
+          "status": 404,
+          "body": {
+            "status": "ERROR",
+            "message": "Không tìm thấy Mã giảm giá với mã: INVALID_COUPON",
+            "data": null
+          }
+        }
+      },
+      {
+        "id": "ORDER_005",
+        "name": "Get Order by ID - Success",
+        "description": "Lấy thông tin đơn hàng theo ID",
+        "endpoint": "GET /api/v1/orders/1",
+        "headers": {
+          "Authorization": "Bearer {jwt_token}"
+        },
+        "expectedResponse": {
+          "status": 200,
+          "body": {
+            "status": "SUCCESS",
+            "message": "Lấy thông tin đơn hàng thành công",
+            "data": {
+              "id": 1,
+              "orderCode": "string",
+              "userId": 1,
+              "fullName": "string",
+              "status": "string",
+              "orderDetails": []
+            }
+          }
+        }
+      },
+      {
+        "id": "ORDER_006",
+        "name": "Get Order by ID - Not Found",
+        "description": "Lấy thông tin đơn hàng với ID không tồn tại",
+        "endpoint": "GET /api/v1/orders/999999",
+        "headers": {
+          "Authorization": "Bearer {jwt_token}"
+        },
+        "expectedResponse": {
+          "status": 404,
+          "body": {
+            "status": "ERROR",
+            "message": "Không tìm thấy Đơn hàng với id: 999999",
+            "data": null
+          }
+        }
+      },
+      {
+        "id": "ORDER_007",
+        "name": "Get Order by Code - Success",
+        "description": "Lấy thông tin đơn hàng theo mã đơn hàng",
+        "endpoint": "GET /api/v1/orders/code/OF20250531011730",
+        "headers": {
+          "Authorization": "Bearer {jwt_token}"
+        },
+        "expectedResponse": {
+          "status": 200,
+          "body": {
+            "status": "SUCCESS",
+            "message": "Lấy thông tin đơn hàng thành công",
+            "data": {
+              "orderCode": "OF20250531011730",
+              "status": "string"
+            }
+          }
+        }
+      },
+      {
+        "id": "ORDER_008",
+        "name": "Update Order Status - Success",
+        "description": "Cập nhật trạng thái đơn hàng từ PENDING sang PROCESSING",
+        "endpoint": "PUT /api/v1/orders/1/status",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {admin_jwt_token}"
+        },
+        "requestBody": {
+          "status": "PROCESSING"
+        },
+        "expectedResponse": {
+          "status": 200,
+          "body": {
+            "status": "SUCCESS",
+            "message": "Cập nhật trạng thái đơn hàng thành công",
+            "data": {
+              "id": 1,
+              "status": "PROCESSING"
+            }
+          }
+        }
+      },
+      {
+        "id": "ORDER_009",
+        "name": "Update Order Status - Invalid Transition",
+        "description": "Cập nhật trạng thái đơn hàng với chuyển đổi không hợp lệ",
+        "endpoint": "PUT /api/v1/orders/1/status",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {admin_jwt_token}"
+        },
+        "requestBody": {
+          "status": "DELIVERED"
+        },
+        "expectedResponse": {
+          "status": 400,
+          "body": {
+            "status": "ERROR",
+            "message": "Không thể chuyển trạng thái từ PENDING sang DELIVERED",
+            "data": null
+          }
+        }
+      },
+      {
+        "id": "ORDER_010",
+        "name": "Get Orders by User ID - Success",
+        "description": "Lấy danh sách đơn hàng của người dùng",
+        "endpoint": "GET /api/v1/orders/user/1",
+        "headers": {
+          "Authorization": "Bearer {jwt_token}"
+        },
+        "expectedResponse": {
+          "status": 200,
+          "body": {
+            "status": "SUCCESS",
+            "message": "Lấy danh sách đơn hàng thành công",
+            "data": [
+              {
+                "id": "int",
+                "orderCode": "string",
+                "userId": 1,
+                "status": "string",
+                "orderDate": "datetime",
+                "totalAmount": "decimal"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "ORDER_011",
+        "name": "Get All Orders - Admin",
+        "description": "Lấy tất cả đơn hàng (phân trang) - Admin only",
+        "endpoint": "GET /api/v1/orders?page=0&size=10&sort=orderDate,desc",
+        "headers": {
+          "Authorization": "Bearer {admin_jwt_token}"
+        },
+        "expectedResponse": {
+          "status": 200,
+          "body": {
+            "status": "SUCCESS",
+            "message": "Lấy danh sách đơn hàng thành công",
+            "data": {
+              "content": [],
+              "pageable": {
+                "pageNumber": 0,
+                "pageSize": 10,
+                "sort": {
+                  "sorted": true
+                }
+              },
+              "totalElements": "int",
+              "totalPages": "int"
+            }
+          }
+        }
+      },
+      {
+        "id": "ORDER_012",
+        "name": "Cancel Order - Success",
+        "description": "Hủy đơn hàng ở trạng thái PENDING",
+        "endpoint": "PUT /api/v1/orders/1/cancel",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {jwt_token}"
+        },
+        "requestBody": {
+          "reason": "Khách hàng đổi ý"
+        },
+        "expectedResponse": {
+          "status": 200,
+          "body": {
+            "status": "SUCCESS",
+            "message": "Hủy đơn hàng thành công",
+            "data": null
+          }
+        }
+      },
+      {
+        "id": "ORDER_013",
+        "name": "Cancel Order - Invalid Status",
+        "description": "Hủy đơn hàng ở trạng thái không được phép",
+        "endpoint": "PUT /api/v1/orders/1/cancel",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {jwt_token}"
+        },
+        "requestBody": {
+          "reason": "Khách hàng đổi ý"
+        },
+        "expectedResponse": {
+          "status": 400,
+          "body": {
+            "status": "ERROR",
+            "message": "Chỉ có thể hủy đơn hàng ở trạng thái Chờ xử lý hoặc Đang xử lý",
+            "data": null
+          }
+        }
+      },
+      {
+        "id": "ORDER_014",
+        "name": "Create Order - Express Shipping",
+        "description": "Tạo đơn hàng với phương thức giao hàng nhanh",
+        "endpoint": "POST /api/v1/orders",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {jwt_token}"
+        },
+        "requestBody": {
+          "userId": 1,
+          "fullname": "Nguyễn Văn Bình",
+          "email": "nguyenvanbinh@gmail.com",
+          "phoneNumber": "0987654321",
+          "shippingAddress": "789 Đường DEF, Quận 3, TP.HCM",
+          "shippingMethod": "EXPRESS",
+          "paymentMethod": "VNPAY",
+          "orderItems": [
+            {
+              "productVariantId": 1,
+              "quantity": 1,
+              "unitPrice": 25000
+            }
+          ]
+        },
+        "expectedResponse": {
+          "status": 201,
+          "body": {
+            "status": "SUCCESS",
+            "message": "Tạo đơn hàng thành công",
+            "data": {
+              "shippingMethod": "EXPRESS",
+              "shippingFee": 50000,
+              "totalAmount": 75000
+            }
+          }
+        }
+      },
+      {
+        "id": "ORDER_015",
+        "name": "Create Order - Validation Error",
+        "description": "Tạo đơn hàng với dữ liệu không hợp lệ",
+        "endpoint": "POST /api/v1/orders",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "requestBody": {
+          "fullname": "",
+          "email": "invalid-email",
+          "phoneNumber": "123",
+          "shippingAddress": "",
+          "paymentMethod": "",
+          "orderItems": []
+        },
+        "expectedResponse": {
+          "status": 400,
+          "body": {
+            "status": "ERROR",
+            "message": "Dữ liệu không hợp lệ",
+            "data": {
+              "fullname": "Họ tên không được để trống",
+              "email": "Email không đúng định dạng",
+              "phoneNumber": "Số điện thoại phải có ít nhất 10 ký tự",
+              "shippingAddress": "Địa chỉ giao hàng không được để trống",
+              "paymentMethod": "Phương thức thanh toán không được để trống",
+              "orderItems": "Danh sách sản phẩm không được để trống"
+            }
+          }
+        }
+      }
+    ],
+    "notes": {
+      "authentication": "Các endpoint cần authentication sử dụng JWT token trong header Authorization",
+      "permissions": "Admin có thể truy cập tất cả đơn hàng, user chỉ truy cập được đơn hàng của mình",
+      "statusTransitions": {
+        "PENDING": ["PROCESSING", "CANCELLED_BY_CUSTOMER", "CANCELLED_BY_ADMIN"],
+        "PROCESSING": ["SHIPPED", "CANCELLED_BY_ADMIN"],
+        "SHIPPED": ["DELIVERED"],
+        "DELIVERED": ["RETURNED"],
+        "CANCELLED_BY_CUSTOMER": [],
+        "CANCELLED_BY_ADMIN": [],
+        "RETURNED": []
+      },
+      "paymentMethods": ["COD", "VNPAY", "BANK_TRANSFER"],
+      "shippingMethods": ["STANDARD", "EXPRESS"],
+      "couponTypes": ["PERCENTAGE", "FIXED_AMOUNT"],
+      "errorCodes": {
+        "INSUFFICIENT_STOCK": "Không đủ tồn kho",
+        "INVALID_COUPON": "Mã giảm giá không hợp lệ",
+        "INVALID_STATUS_TRANSITION": "Chuyển đổi trạng thái không hợp lệ",
+        "ORDER_NOT_FOUND": "Không tìm thấy đơn hàng",
+        "USER_NOT_FOUND": "Không tìm thấy người dùng",
+        "PRODUCT_VARIANT_NOT_FOUND": "Không tìm thấy biến thể sản phẩm"
+      }
+    }
+  }
+}

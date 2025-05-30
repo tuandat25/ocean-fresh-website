@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.tuandat.oceanfresh_backend.components.LocalizationUtils;
@@ -62,10 +61,10 @@ public class CategoryController {
     //Hiện tất cả các categories
     @GetMapping("")
     public ResponseEntity<ResponseObject> getAllCategories(
-            @RequestParam("page")     int page,
-            @RequestParam("limit")    int limit
+        //     @RequestParam("page")     int page,
+        //     @RequestParam("limit")    int limit
     ) {
-        List<Category> categories = categoryService.getAllCategories();
+        List<CategoryDTO> categories = categoryService.getAllCategories();
         return ResponseEntity.ok(ResponseObject.builder()
                         .message("Get list of categories successfully")
                         .status(HttpStatus.OK)

@@ -1,51 +1,50 @@
 package com.tuandat.oceanfresh_backend.responses;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.tuandat.oceanfresh_backend.models.Product;
-import com.tuandat.oceanfresh_backend.models.ProductImage;
-
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-public class ProductResponse extends BaseResponse {
+public class ProductResponse {
     private Long id;
     private String name;
-    private Float price;
-    private String thumbnail;
-    private Integer quantity;
-    private Integer soldQuantity;
     private String description;
-    // Thêm trường totalPages
-    private int totalPages;
+    private Double price;
+    private String imageUrl;
 
-    @JsonProperty("product_images")
-    private List<ProductImage> productImages = new ArrayList<>();
+    // Getters and Setters
+    public Long getId() {
+        return id;
+    }
 
-    @JsonProperty("category_id")
-    private Long categoryId;
-    public static ProductResponse fromProduct(Product product) {
-        ProductResponse productResponse = ProductResponse.builder()
-                .id(product.getId())
-                .name(product.getName())
-                .price(product.getPrice())
-                .thumbnail(product.getThumbnail())
-                .description(product.getDescription())
-                .categoryId(product.getCategory().getId())
-                .quantity(product.getQuantity())
-                .soldQuantity(product.getSoldQuantity())
-                .productImages(product.getProductImages())
-                .build();
-        productResponse.setCreatedAt(product.getCreatedAt());
-        productResponse.setUpdatedAt(product.getUpdatedAt());
-        return productResponse;
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public Double getPrice() {
+        return price;
+    }
+
+    public void setPrice(Double price) {
+        this.price = price;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 }
