@@ -12,8 +12,8 @@ C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tu
 C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\dtos\attribute\AttributeValueDTO.java
 C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\dtos\CategoryCreateDTO.java
 C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\dtos\CategoryDTO.java
-C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\dtos\OrderDetailDTO.java
 C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\dtos\OrderDTO.java
+C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\dtos\OrderItemDTO.java
 C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\dtos\product\AttributeDTO.java
 C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\dtos\product\AttributeValueDTO.java
 C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\dtos\product\ProductCreateDTO.java
@@ -27,6 +27,8 @@ C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tu
 C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\exceptions\DuplicateResourceException.java
 C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\exceptions\ExpiredTokenException.java
 C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\exceptions\GlobalExceptionHandler.java
+C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\exceptions\InsufficientStockException.java
+C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\exceptions\InvalidOrderStateException.java
 C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\exceptions\InvalidParamException.java
 C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\exceptions\InvalidPasswordException.java
 C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\exceptions\PermissionDenyException.java
@@ -40,6 +42,7 @@ C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tu
 C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\models\Comment.java
 C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\models\Coupon.java
 C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\models\CouponCondition.java
+C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\models\DiscountType.java
 C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\models\Order.java
 C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\models\OrderDetail.java
 C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\models\OrderStatus.java
@@ -53,6 +56,8 @@ C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tu
 C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\repositories\AttributeRepository.java
 C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\repositories\AttributeValueRepository.java
 C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\repositories\CategoryRepository.java
+C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\repositories\CouponRepository.java
+C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\repositories\OrderDetailRepository.java
 C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\repositories\OrderRepository.java
 C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\repositories\ProductImageRepository.java
 C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\repositories\ProductRepository.java
@@ -62,7 +67,8 @@ C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tu
 C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\responses\AttributeValueResponse.java
 C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\responses\BaseResponse.java
 C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\responses\CategoryResponse.java
-C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\responses\OrderResponse.java
+C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\responses\orders\OrderDetailResponse.java
+C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\responses\orders\OrderResponse.java
 C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\responses\product\ProductBaseResponse.java
 C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\responses\product\ProductDetailResponse.java
 C:\Users\dat20\Desktop\OceanFreshWebsite\oceanfresh_backend\src\main\java\com\tuandat\oceanfresh_backend\responses\product\ProductVariantResponse.java

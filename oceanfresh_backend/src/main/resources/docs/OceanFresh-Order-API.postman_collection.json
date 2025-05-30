@@ -1,0 +1,355 @@
+{
+  "info": {
+    "name": "OceanFresh Order API",
+    "description": "API testing collection for OceanFresh Order Management System",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{jwt_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8088/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_jwt_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "order_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "order_code",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Order Management",
+      "item": [
+        {
+          "name": "1. Create Order - Success",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": 1,\n  \"fullname\": \"Nguyễn Văn An\",\n  \"email\": \"nguyenvanan@gmail.com\",\n  \"phoneNumber\": \"0987654321\",\n  \"shippingAddress\": \"123 Đường ABC, Quận 1, TP.HCM\",\n  \"note\": \"Giao hàng vào buổi sáng\",\n  \"shippingMethod\": \"STANDARD\",\n  \"shippingDateExpected\": \"2025-06-02\",\n  \"paymentMethod\": \"COD\",\n  \"couponCode\": \"NEWCUSTOMER10\",\n  \"orderItems\": [\n    {\n      \"productVariantId\": 1,\n      \"quantity\": 2,\n      \"unitPrice\": 25000\n    },\n    {\n      \"productVariantId\": 2,\n      \"quantity\": 1,\n      \"unitPrice\": 35000\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders",
+              "host": ["{{base_url}}"],
+              "path": ["orders"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2. Create Order - Guest User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": null,\n  \"fullname\": \"Khách Vãng Lai\",\n  \"email\": \"guest@example.com\",\n  \"phoneNumber\": \"0912345678\",\n  \"shippingAddress\": \"456 Đường XYZ, Quận 2, TP.HCM\",\n  \"paymentMethod\": \"VNPAY\",\n  \"orderItems\": [\n    {\n      \"productVariantId\": 3,\n      \"quantity\": 1,\n      \"unitPrice\": 45000\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders",
+              "host": ["{{base_url}}"],
+              "path": ["orders"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3. Create Order - Express Shipping",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": 1,\n  \"fullname\": \"Nguyễn Văn Bình\",\n  \"email\": \"nguyenvanbinh@gmail.com\",\n  \"phoneNumber\": \"0987654321\",\n  \"shippingAddress\": \"789 Đường DEF, Quận 3, TP.HCM\",\n  \"shippingMethod\": \"EXPRESS\",\n  \"paymentMethod\": \"VNPAY\",\n  \"orderItems\": [\n    {\n      \"productVariantId\": 1,\n      \"quantity\": 1,\n      \"unitPrice\": 25000\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders",
+              "host": ["{{base_url}}"],
+              "path": ["orders"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4. Get Order by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/orders/{{order_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "{{order_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5. Get Order by Code",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/orders/code/{{order_code}}",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "code", "{{order_code}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "6. Get Orders by User ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/orders/user/1",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "user", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "7. Get All Orders (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/orders?page=0&size=10&sort=orderDate,desc",
+              "host": ["{{base_url}}"],
+              "path": ["orders"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                },
+                {
+                  "key": "sort",
+                  "value": "orderDate,desc"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "8. Update Order Status",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"PROCESSING\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders/{{order_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "{{order_id}}", "status"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "9. Cancel Order",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Khách hàng đổi ý\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders/{{order_id}}/cancel",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "{{order_id}}", "cancel"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Error Test Cases",
+      "item": [
+        {
+          "name": "Create Order - Insufficient Stock",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": 1,\n  \"fullname\": \"Nguyễn Văn An\",\n  \"email\": \"nguyenvanan@gmail.com\",\n  \"phoneNumber\": \"0987654321\",\n  \"shippingAddress\": \"123 Đường ABC, Quận 1, TP.HCM\",\n  \"paymentMethod\": \"COD\",\n  \"orderItems\": [\n    {\n      \"productVariantId\": 1,\n      \"quantity\": 1000,\n      \"unitPrice\": 25000\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders",
+              "host": ["{{base_url}}"],
+              "path": ["orders"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Order - Invalid Coupon",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": 1,\n  \"fullname\": \"Nguyễn Văn An\",\n  \"email\": \"nguyenvanan@gmail.com\",\n  \"phoneNumber\": \"0987654321\",\n  \"shippingAddress\": \"123 Đường ABC, Quận 1, TP.HCM\",\n  \"paymentMethod\": \"COD\",\n  \"couponCode\": \"INVALID_COUPON\",\n  \"orderItems\": [\n    {\n      \"productVariantId\": 1,\n      \"quantity\": 1,\n      \"unitPrice\": 25000\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders",
+              "host": ["{{base_url}}"],
+              "path": ["orders"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Order - Validation Error",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullname\": \"\",\n  \"email\": \"invalid-email\",\n  \"phoneNumber\": \"123\",\n  \"shippingAddress\": \"\",\n  \"paymentMethod\": \"\",\n  \"orderItems\": []\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders",
+              "host": ["{{base_url}}"],
+              "path": ["orders"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Order - Not Found",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/orders/999999",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "999999"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Order Status - Invalid Transition",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"DELIVERED\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders/{{order_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "{{order_id}}", "status"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Order - Invalid Status",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Khách hàng đổi ý\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders/{{order_id}}/cancel",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "{{order_id}}", "cancel"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

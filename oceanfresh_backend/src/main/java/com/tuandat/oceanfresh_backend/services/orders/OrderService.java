@@ -1,308 +1,459 @@
 package com.tuandat.oceanfresh_backend.services.orders;
 
-// import com.tuandat.oceanfresh_backend.dtos.CartItemDTO;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.List;
-
-import org.modelmapper.ModelMapper;
+import com.tuandat.oceanfresh_backend.dtos.OrderDTO;
+import com.tuandat.oceanfresh_backend.dtos.OrderItemDTO;
+import com.tuandat.oceanfresh_backend.exceptions.InsufficientStockException;
+import com.tuandat.oceanfresh_backend.exceptions.InvalidOrderStateException;
+import com.tuandat.oceanfresh_backend.exceptions.ResourceNotFoundException;
+import com.tuandat.oceanfresh_backend.models.*;
+import com.tuandat.oceanfresh_backend.models.Coupon.DiscountType;
+import com.tuandat.oceanfresh_backend.repositories.*;
+import com.tuandat.oceanfresh_backend.responses.orders.OrderResponse;
+import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
-import com.tuandat.oceanfresh_backend.dtos.OrderDTO;
-import com.tuandat.oceanfresh_backend.exceptions.ResourceNotFoundException;
-import com.tuandat.oceanfresh_backend.models.Order;
-import com.tuandat.oceanfresh_backend.models.OrderStatus;
-import com.tuandat.oceanfresh_backend.models.User;
-import com.tuandat.oceanfresh_backend.repositories.OrderRepository;
-import com.tuandat.oceanfresh_backend.repositories.UserRepository;
-import com.tuandat.oceanfresh_backend.responses.OrderResponse;
-
-import lombok.RequiredArgsConstructor;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class OrderService implements IOrderService {
-    private final UserRepository userRepository;
-    private final OrderRepository orderRepository;
-    // private final ProductRepository productRepository;
-    // private final CouponRepository couponRepository;
-    // private final OrderDetailRepository orderDetailRepository;
+        private static final Logger logger = LoggerFactory.getLogger(OrderService.class);
 
-    private final ModelMapper modelMapper;
+        private final OrderRepository orderRepository;
+        private final OrderDetailRepository orderDetailRepository;
+        private final UserRepository userRepository;
+        private final ProductVariantRepository productVariantRepository;
+        private final CouponRepository couponRepository;
 
-    @Override
-    @Transactional
-    public OrderResponse createOrder(OrderDTO orderDTO) throws Exception {
+        // Các hằng số tạo đơn hàng
+        private static final BigDecimal DEFAULT_SHIPPING_FEE = BigDecimal.valueOf(30000); // 30k VND
+        private static final String DEFAULT_SHIPPING_METHOD = "STANDARD";
 
-        //tìm xem user'id có tồn tại ko
-        User user = userRepository
-                .findById(orderDTO.getUserId())
-                .orElseThrow(() -> new ResourceNotFoundException("Cannot find user with id: "+orderDTO.getUserId()));
-        //convert orderDTO => Order
-        //dùng thư viện Model Mapper
-        // Tạo một luồng bảng ánh xạ riêng để kiểm soát việc ánh xạ
-        modelMapper.typeMap(OrderDTO.class, Order.class)
-                .addMappings(mapper -> mapper.skip(Order::setId));
-        // Cập nhật các trường của đơn hàng từ orderDTO
-        Order order = new Order();
-        modelMapper.map(orderDTO, order);
-        order.setUser(user);        order.setOrderDate(LocalDateTime.now());//lấy thời điểm hiện tại
-        order.setStatus(OrderStatus.PENDING);
-        //Kiểm tra shipping date phải >= ngày hôm nay
-        LocalDate shippingDate = orderDTO.getShippingDate() == null
-                ? LocalDate.now() : orderDTO.getShippingDate();
-        if (shippingDate.isBefore(LocalDate.now())) {
-            throw new ResourceNotFoundException("Date must be at least today !");
+        // Các chuyển trạng thái hợp lệ
+        private static final Map<String, Set<String>> VALID_STATUS_TRANSITIONS = Map.of(
+                        "PENDING",
+                        Set.of("PROCESSING", "CANCELLED_BY_CUSTOMER",
+                                        "CANCELLED_BY_ADMIN"),
+                        "PROCESSING", Set.of("SHIPPED", "CANCELLED_BY_ADMIN"),
+                        "SHIPPED", Set.of("DELIVERED"),
+                        "DELIVERED", Set.of("RETURNED"),
+                        "CANCELLED_BY_CUSTOMER", Set.of(),
+                        "CANCELLED_BY_ADMIN", Set.of(),
+                        "RETURNED", Set.of());
+
+        @Override
+        @Transactional
+        public OrderResponse createOrder(OrderDTO orderDTO) throws Exception {
+                logger.info("Bắt đầu tạo đơn hàng cho người dùng: {}", orderDTO.getUserId());
+
+                // 1. Xác thực và lấy thông tin người dùng (có thể null cho khách vãng lai)
+                User user = null;
+                if (orderDTO.getUserId() != null) {
+                        user = userRepository.findById(orderDTO.getUserId())
+                                        .orElseThrow(() -> new ResourceNotFoundException("Người dùng", "id",
+                                                        orderDTO.getUserId()));
+                }
+
+                // 2. Xác thực sản phẩm trong đơn hàng và tính tổng tiền
+                List<OrderDetail> orderDetails = validateAndCreateOrderDetails(orderDTO.getOrderItems());
+                BigDecimal subtotalAmount = calculateSubtotal(orderDetails);
+
+                // 3. Áp dụng mã giảm giá nếu có
+                Coupon coupon = null;
+                BigDecimal discountAmount = BigDecimal.ZERO;
+                if (StringUtils.hasText(orderDTO.getCouponCode())) {
+                        coupon = validateAndApplyCoupon(orderDTO.getCouponCode(), subtotalAmount, user);
+                        discountAmount = calculateDiscount(coupon, subtotalAmount);
+                }
+
+                // 4. Tính phí vận chuyển
+                BigDecimal shippingFee = calculateShippingFee(orderDTO.getShippingAddress(),
+                                orderDTO.getShippingMethod());
+
+                // 5. Tính tổng tiền cuối cùng
+                BigDecimal totalAmount = subtotalAmount.add(shippingFee).subtract(discountAmount);
+
+                // 6. Tạo và lưu đơn hàng
+                Order order = Order.builder()
+                                .orderCode(generateOrderCode())
+                                .user(user)
+                                .fullName(orderDTO.getFullname())
+                                .email(orderDTO.getEmail())
+                                .phoneNumber(orderDTO.getPhoneNumber())
+                                .shippingAddress(orderDTO.getShippingAddress())
+                                .note(orderDTO.getNote())
+                                .orderDate(LocalDateTime.now())
+                                .status(OrderStatus.PENDING)
+                                .subtotalAmount(subtotalAmount)
+                                .shippingFee(shippingFee)
+                                .discountAmount(discountAmount)
+                                .totalAmount(totalAmount)
+                                .shippingMethod(StringUtils.hasText(orderDTO.getShippingMethod())
+                                                ? orderDTO.getShippingMethod()
+                                                : DEFAULT_SHIPPING_METHOD)
+                                .shippingDateExpected(orderDTO.getShippingDateExpected() != null
+                                                ? orderDTO.getShippingDateExpected()
+                                                : LocalDate.now().plusDays(2))
+                                .paymentMethod(orderDTO.getPaymentMethod())
+                                .paymentStatus(PaymentStatus.UNPAID)
+                                .coupon(coupon)
+                                .vnpTxnRef(orderDTO.getVnpTxnRef())
+                                .build();
+
+                // 7. Lưu đơn hàng trước để có ID
+                Order savedOrder = orderRepository.save(order);
+                logger.info("Đã lưu đơn hàng với ID: {} và mã: {}", savedOrder.getId(), savedOrder.getOrderCode());
+
+                // 8. Gán tham chiếu đơn hàng cho chi tiết và lưu
+                orderDetails.forEach(detail -> detail.setOrder(savedOrder));
+                List<OrderDetail> savedOrderDetails = orderDetailRepository.saveAll(orderDetails);
+
+                // 9. Cập nhật tồn kho sản phẩm (giữ hàng)
+                updateInventory(orderDetails, false); // false = giảm tồn kho
+
+                // 10. Cập nhật số lần sử dụng mã giảm giá nếu có
+                if (coupon != null) {
+                        updateCouponUsage(coupon);
+                }
+
+                logger.info("Tạo đơn hàng thành công với mã: {}", savedOrder.getOrderCode());
+                return buildOrderResponse(savedOrder, savedOrderDetails);
         }
-        order.setShippingDateExpected(shippingDate);
-        // Note: Orders don't have an active field, they use status enum instead
-        // //EAV-Entity-Attribute-Value model
-        // order.setTotalMoney(orderDTO.getTotalMoney());
-        // // Lưu vnpTxnRef nếu có
-        // if (orderDTO.getVnpTxnRef() != null) {
-        //     order.setVnpTxnRef(orderDTO.getVnpTxnRef());
-        // }
-        // if(orderDTO.getShippingAddress() == null) {
-        //     order.setShippingAddress(orderDTO.getAddress());
-        // }
-        // // Tạo danh sách các đối tượng OrderDetail từ cartItems
-        // List<OrderDetail> orderDetails = new ArrayList<>();
-        // for (CartItemDTO cartItemDTO : orderDTO.getCartItems()) {
-        //     // Tạo một đối tượng OrderDetail từ CartItemDTO
-        //     OrderDetail orderDetail = new OrderDetail();
-        //     orderDetail.setOrder(order);
 
-        //     // Lấy thông tin sản phẩm từ cartItemDTO
-        //     Long productId = cartItemDTO.getProductId();
-        //     int quantity = cartItemDTO.getQuantity();
+        @Override
+        @Transactional(readOnly = true)
+        public OrderResponse getOrderById(Long orderId) throws ResourceNotFoundException {
+                Order order = orderRepository.findById(orderId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Đơn hàng", "id", orderId));
 
-        //     // Tìm thông tin sản phẩm từ cơ sở dữ liệu (hoặc sử dụng cache nếu cần)
-        //     Product product = productRepository.findById(productId)
-        //             .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productId));
+                List<OrderDetail> orderDetails = orderDetailRepository.findByOrderId(orderId);
+                return buildOrderResponse(order, orderDetails);
+        }
 
-        //     // Đặt thông tin cho OrderDetail
-        //     orderDetail.setProduct(product);
-        //     orderDetail.setNumberOfProducts(quantity);
-        //     // Các trường khác của OrderDetail nếu cần
-        //     orderDetail.setPrice(product.getPrice());
+        @Override
+        @Transactional(readOnly = true)
+        public OrderResponse getOrderByCode(String orderCode) throws ResourceNotFoundException {
+                Order order = orderRepository.findByOrderCode(orderCode)
+                                .orElseThrow(() -> new ResourceNotFoundException("Đơn hàng", "mã", orderCode));
 
-        //     // Thêm OrderDetail vào danh sách
-        //     orderDetails.add(orderDetail);
-        // }
+                List<OrderDetail> orderDetails = orderDetailRepository.findByOrderId(order.getId());
+                return buildOrderResponse(order, orderDetails);
+        }
 
-        // //coupon
-        // String couponCode = orderDTO.getCouponCode();
-        // if (!couponCode.isEmpty()) {
-        //     Coupon coupon = couponRepository.findByCode(couponCode)
-        //             .orElseThrow(() -> new IllegalArgumentException("Coupon not found"));
+        @Override
+        @Transactional
+        public OrderResponse updateOrderStatus(Long orderId, String newStatus) throws Exception {
+                Order order = orderRepository.findById(orderId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Đơn hàng", "id", orderId));
 
-        //     if (!coupon.isActive()) {
-        //         throw new IllegalArgumentException("Coupon is not active");
-        //     }
+                String currentStatus = order.getStatus().toString();
 
-        //     order.setCoupon(coupon);
-        // } else {
-        //     order.setCoupon(null);
-        // }
-        // // Lưu danh sách OrderDetail vào cơ sở dữ liệu
-        // orderDetailRepository.saveAll(orderDetails);
-        orderRepository.save(order);
-        // return order;
-        return modelMapper.map(order, OrderResponse.class);
-    }
+                // Xác thực chuyển đổi trạng thái
+                validateStatusTransition(currentStatus, newStatus);
 
-    // @Transactional
-    // public Order updateOrderWithDetails(OrderWithDetailsDTO orderWithDetailsDTO) {
-    //     modelMapper.typeMap(OrderWithDetailsDTO.class, Order.class)
-    //             .addMappings(mapper -> mapper.skip(Order::setId));
-    //     Order order = new Order();
-    //     modelMapper.map(orderWithDetailsDTO, order);
-    //     Order savedOrder = orderRepository.save(order);
+                // Xử lý logic theo trạng thái cụ thể
+                handleStatusChange(order, currentStatus, newStatus);
 
-    //     // Set the order for each order detail
-    //     for (OrderDetailDTO orderDetailDTO : orderWithDetailsDTO.getOrderDetailDTOS()) {
-    //         //orderDetail.setOrder(OrderDetail);
-    //     }
+                // Cập nhật trạng thái
+                order.setStatus(OrderStatus.valueOf(newStatus));
+                Order updatedOrder = orderRepository.save(order);
 
-    //     // Save or update the order details
-    //     List<OrderDetail> savedOrderDetails = orderDetailRepository.saveAll(order.getOrderDetails());
+                logger.info("Đơn hàng {} đã chuyển trạng thái từ {} sang {}", order.getOrderCode(), currentStatus,
+                                newStatus);
 
-    //     // Set the updated order details for the order
-    //     savedOrder.setOrderDetails(savedOrderDetails);
+                List<OrderDetail> orderDetails = orderDetailRepository.findByOrderId(orderId);
+                return buildOrderResponse(updatedOrder, orderDetails);
+        }
 
-    //     return savedOrder;
-    // }
-    // @Override
-    // public Order getOrderById(Long orderId) {
-    //     // Tìm theo ID
-    //     Order order = orderRepository.findById(orderId).orElse(null);
-    //     if (order == null) {
-    //         // Nếu không tìm thấy theo ID, tìm theo vnpTxnRef
-    //         order = orderRepository.findByVnpTxnRef(orderId.toString()).orElse(null);
-    //     }
-    //     return order;
-    // }
+        @Override
+        @Transactional(readOnly = true)
+        public List<OrderResponse> findByUserId(Long userId) {
+                List<Order> orders = orderRepository.findByUserIdOrderByOrderDateDesc(userId);
+                return orders.stream()
+                                .map(order -> {
+                                        List<OrderDetail> orderDetails = orderDetailRepository
+                                                        .findByOrderId(order.getId());
+                                        return buildOrderResponse(order, orderDetails);
+                                })
+                                .collect(Collectors.toList());
+        }
 
-    // @Override
-    // @Transactional
-    // public Order updateOrder(Long id, OrderDTO orderDTO)
-    //         throws ResourceNotFoundException {
-    //     Order order = getOrderById(id);
-    //     User existingUser = userRepository.findById(
-    //             orderDTO.getUserId()).orElseThrow(() ->
-    //             new ResourceNotFoundException("Cannot find user with id: " + id));
-    //     /*
-    //     modelMapper.typeMap(OrderDTO.class, Order.class)
-    //             .addMappings(mapper -> mapper.skip(Order::setId));
-    //     modelMapper.map(orderDTO, order);
-    //      */
-    //     // Setting user
-    //     if (orderDTO.getUserId() != null) {
-    //         User user = new User();
-    //         user.setId(orderDTO.getUserId());
-    //         order.setUser(user);
-    //     }
+        @Override
+        @Transactional(readOnly = true)
+        public Page<OrderResponse> getAllOrders(Pageable pageable) {
+                Page<Order> orders = orderRepository.findAll(pageable);
+                return orders.map(order -> {
+                        List<OrderDetail> orderDetails = orderDetailRepository.findByOrderId(order.getId());
+                        return buildOrderResponse(order, orderDetails);
+                });
+        }
 
-    //     if (orderDTO.getFullName() != null && !orderDTO.getFullName().trim().isEmpty()) {
-    //         order.setFullName(orderDTO.getFullName().trim());
-    //     }
+        @Override
+        @Transactional
+        public void cancelOrder(Long orderId, String reason) throws Exception {
+                Order order = orderRepository.findById(orderId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Đơn hàng", "id", orderId));
 
-    //     if (orderDTO.getEmail() != null && !orderDTO.getEmail().trim().isEmpty()) {
-    //         order.setEmail(orderDTO.getEmail().trim());
-    //     }
+                if (!OrderStatus.PENDING.equals(order.getStatus())
+                                && !OrderStatus.PROCESSING.equals(order.getStatus())) {
+                        throw new InvalidOrderStateException(
+                                        "Chỉ có thể hủy đơn hàng ở trạng thái Chờ xử lý hoặc Đang xử lý");
+                }
 
-    //     if (orderDTO.getPhoneNumber() != null && !orderDTO.getPhoneNumber().trim().isEmpty()) {
-    //         order.setPhoneNumber(orderDTO.getPhoneNumber().trim());
-    //     }
+                // Hoàn trả tồn kho
+                List<OrderDetail> orderDetails = orderDetailRepository.findByOrderId(orderId);
+                updateInventory(orderDetails, true); // true = tăng tồn kho
 
-    //     if (orderDTO.getStatus() != null && !orderDTO.getStatus().trim().isEmpty()) {
-    //         order.setStatus(orderDTO.getStatus().trim());
-    //     }
+                // Cập nhật trạng thái đơn hàng
+                order.setStatus(OrderStatus.CANCELLED_BY_CUSTOMER);
+                order.setNote(order.getNote() != null ? order.getNote() + " | Đã hủy: " + reason : "Đã hủy: " + reason);
+                orderRepository.save(order);
 
-    //     if (orderDTO.getAddress() != null && !orderDTO.getAddress().trim().isEmpty()) {
-    //         order.setAddress(orderDTO.getAddress().trim());
-    //     }
+                logger.info("Đơn hàng {} đã được khách hàng hủy. Lý do: {}", order.getOrderCode(), reason);
+        }
 
-    //     if (orderDTO.getNote() != null && !orderDTO.getNote().trim().isEmpty()) {
-    //         order.setNote(orderDTO.getNote().trim());
-    //     }
+        // ===== CÁC PHƯƠNG THỨC HỖ TRỢ =====
 
-    //     if (orderDTO.getTotalMoney() != null) {
-    //         order.setTotalMoney(orderDTO.getTotalMoney());
-    //     }
+        private List<OrderDetail> validateAndCreateOrderDetails(List<OrderItemDTO> orderItems) {
+                List<OrderDetail> orderDetails = new ArrayList<>();
 
-    //     if (orderDTO.getShippingMethod() != null && !orderDTO.getShippingMethod().trim().isEmpty()) {
-    //         order.setShippingMethod(orderDTO.getShippingMethod().trim());
-    //     }
+                for (OrderItemDTO item : orderItems) {
+                        ProductVariant variant = productVariantRepository.findById(item.getProductVariantId())
+                                        .orElseThrow(() -> new ResourceNotFoundException("Biến thể sản phẩm", "id",
+                                                        item.getProductVariantId()));
 
-    //     if (orderDTO.getShippingAddress() != null && !orderDTO.getShippingAddress().trim().isEmpty()) {
-    //         order.setShippingAddress(orderDTO.getShippingAddress().trim());
-    //     }
+                        // Xác thực biến thể có hoạt động không
+                        if (!variant.isActive()) {
+                                throw new InvalidOrderStateException(
+                                                "Biến thể sản phẩm " + variant.getSku() + " hiện không khả dụng");
+                        }
 
-    //     if (orderDTO.getShippingDate() != null) {
-    //         order.setShippingDate(orderDTO.getShippingDate());
-    //     }
+                        // Xác thực tồn kho
+                        if (variant.getQuantityInStock() < item.getQuantity()) {
+                                throw new InsufficientStockException("Không đủ hàng cho sản phẩm " + variant.getSku() +
+                                                ". Còn lại: " + variant.getQuantityInStock() + ", Yêu cầu: "
+                                                + item.getQuantity());
+                        }
 
-    //     if (orderDTO.getPaymentMethod() != null && !orderDTO.getPaymentMethod().trim().isEmpty()) {
-    //         order.setPaymentMethod(orderDTO.getPaymentMethod().trim());
-    //     }
+                        // Xác thực giá (kiểm tra giá với giá hiện tại)
+                        if (item.getUnitPrice() != null && item.getUnitPrice().compareTo(variant.getPrice()) != 0) {
+                                logger.warn("Giá không khớp cho biến thể {}. Giá mong đợi: {}, Giá cung cấp: {}",
+                                                variant.getSku(), variant.getPrice(), item.getUnitPrice());
+                                // Sử dụng giá hiện tại của biến thể để bảo mật
+                        }
 
-    //     order.setUser(existingUser);
-    //     return orderRepository.save(order);
-    // }
+                        BigDecimal priceAtOrder = variant.getPrice();
+                        BigDecimal lineTotal = priceAtOrder.multiply(BigDecimal.valueOf(item.getQuantity()));
 
-    // @Override
-    // @Transactional
-    // public void deleteOrder(Long orderId) {
-    //     Order order = getOrderById(orderId);
-    //     //no hard-delete, => please soft-delete
-    //     if(order != null) {
-    //         order.setActive(false);
-    //         orderRepository.save(order);
-    //     }
-    // }
-    // @Override
-    // public List<OrderResponse> findByUserId(Long userId) {
-    //     List<Order> orders = orderRepository.findByUserId(userId);
-    //     return orders.stream().map(order -> OrderResponse.fromOrder(order)).toList();
-    // }
+                        OrderDetail detail = OrderDetail.builder()
+                                        .productVariant(variant)
+                                        .quantity(item.getQuantity())
+                                        .priceAtOrder(priceAtOrder)
+                                        .totalLineAmount(lineTotal)
+                                        .build();
 
-    // @Override
-    // public Page<Order> getOrdersByKeyword(String keyword, Pageable pageable) {
-    //     return orderRepository.findByKeyword(keyword, pageable);
-    // }
-    // @Override
-    // @Transactional
-    // public Order updateOrderStatus(Long id, String status) throws ResourceNotFoundException, IllegalArgumentException {
-    //     // Tìm đơn hàng theo ID
-    //     Order order = getOrderById(id); // Sẽ tìm theo ID trước, sau đó tìm theo vnpTxnRef
+                        orderDetails.add(detail);
+                }
 
-    //     // Kiểm tra trạng thái hợp lệ
-    //     if (status == null || status.trim().isEmpty()) {
-    //         throw new IllegalArgumentException("Status cannot be null or empty");
-    //     }
+                return orderDetails;
+        }
 
-    //     // Kiểm tra xem trạng thái có nằm trong danh sách hợp lệ không
-    //     if (!OrderStatus.VALID_STATUSES.contains(status)) {
-    //         throw new IllegalArgumentException("Invalid status: " + status);
-    //     }
+        private BigDecimal calculateSubtotal(List<OrderDetail> orderDetails) {
+                return orderDetails.stream()
+                                .map(OrderDetail::getTotalLineAmount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
 
-    //     // Kiểm tra logic chuyển đổi trạng thái
-    //     String currentStatus = order.getStatus();
-    //     if (currentStatus.equals(OrderStatus.DELIVERED) && !status.equals(OrderStatus.CANCELLED)) {
-    //         throw new IllegalArgumentException("Cannot change status from DELIVERED to " + status);
-    //     }
+        private Coupon validateAndApplyCoupon(String couponCode, BigDecimal subtotalAmount, User user)
+                        throws ResourceNotFoundException, InvalidOrderStateException {
 
-    //     if (currentStatus.equals(OrderStatus.CANCELLED)) {
-    //         throw new IllegalArgumentException("Cannot change status of a CANCELLED order");
-    //     }
+                Coupon coupon = couponRepository.findByCode(couponCode)
+                                .orElseThrow(() -> new ResourceNotFoundException("Mã giảm giá", "code", couponCode));
 
-    //     if (status.equals(OrderStatus.CANCELLED)) {
-    //         // Kiểm tra xem đơn hàng có thể bị hủy không
-    //         if (!currentStatus.equals(OrderStatus.PENDING)) {
-    //             throw new IllegalArgumentException("Order can only be cancelled from PENDING status");
-    //         }
-    //     }
+                // Check if coupon is active
+                if (!coupon.getIsActive()) {
+                        throw new InvalidOrderStateException("Mã giảm giá không còn hiệu lực");
+                }
 
-    //     // Cập nhật trạng thái đơn hàng
-    //     order.setStatus(status);
+                LocalDateTime now = LocalDateTime.now();
 
-    //     // Lưu đơn hàng đã cập nhật
-    //     return orderRepository.save(order);
-    // }
-    @Override
-    public OrderResponse getOrderById(Long orderId) throws ResourceNotFoundException {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new ResourceNotFoundException("Cannot find order with id: " + orderId));
-        return modelMapper.map(order, OrderResponse.class);
-    }
+                // Kiểm tra thời gian hiệu lực
+                if (now.isBefore(coupon.getStartDate()) || now.isAfter(coupon.getEndDate())) {
+                        throw new InvalidOrderStateException("Mã giảm giá đã hết hạn hoặc chưa có hiệu lực");
+                }
 
-    @Override
-    public List<OrderResponse> findByUserId(Long userId) {
-        List<Order> orders = orderRepository.findByUserId(userId);
-        return orders.stream().map(order -> modelMapper.map(order, OrderResponse.class)).toList();
-    }
+                // Kiểm tra giá trị đơn hàng tối thiểu
+                if (subtotalAmount.compareTo(coupon.getMinimumOrderValue()) < 0) {
+                        throw new InvalidOrderStateException(
+                                        String.format("Đơn hàng phải có giá trị tối thiểu %s để sử dụng mã giảm giá này",
+                                                        coupon.getMinimumOrderValue()));
+                }
 
-    
+                // Kiểm tra số lần sử dụng tối đa
+                if (coupon.getMaxTotalUsage() != null &&
+                                coupon.getCurrentUsageCount() >= coupon.getMaxTotalUsage()) {
+                        throw new InvalidOrderStateException("Mã giảm giá đã hết lượt sử dụng");
+                }
 
-    @Override
-    public OrderResponse updateOrder(Long id, OrderDTO orderDTO) throws ResourceNotFoundException {
-        Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Cannot find order with id: " + id));
-        // Update the order fields using the DTO
-        modelMapper.map(orderDTO, order);
-        // Save the updated order
-        Order updatedOrder = orderRepository.save(order);
-        return modelMapper.map(updatedOrder, OrderResponse.class);
-    }
+                return coupon;
+        }
 
-    @Override    public void deleteOrder(Long orderId) throws ResourceNotFoundException{
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new ResourceNotFoundException("Cannot find order with id: " + orderId));
-        // Set status to cancelled for soft delete
-        order.setStatus(OrderStatus.CANCELLED_BY_ADMIN);
-        orderRepository.save(order);
-    }
+        private BigDecimal calculateDiscount(Coupon coupon, BigDecimal subtotalAmount) {
+                if (DiscountType.percentage.equals(coupon.getDiscountType())) {
+                        BigDecimal discountAmount = subtotalAmount.multiply(coupon.getDiscountValue())
+                                        .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+
+                        if (coupon.getMaxDiscountAmount() != null) {
+                                return discountAmount.min(coupon.getMaxDiscountAmount());
+                        }
+                        return discountAmount;
+                } else if (DiscountType.fixed_amount.equals(coupon.getDiscountType())) {
+                        return coupon.getDiscountValue().min(subtotalAmount);
+                }
+
+                return BigDecimal.ZERO;
+        }
+
+        private BigDecimal calculateShippingFee(String address, String shippingMethod) {
+                // Tính phí vận chuyển đơn giản - có thể nâng cấp sau
+                if ("EXPRESS".equalsIgnoreCase(shippingMethod)) {
+                        return BigDecimal.valueOf(50000); // 50k VND cho giao nhanh
+                }
+                return DEFAULT_SHIPPING_FEE; // 30k VND cho giao tiêu chuẩn
+        }
+
+        private String generateOrderCode() {
+                String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+                return "OF" + timestamp;
+        }
+
+        private void updateInventory(List<OrderDetail> orderDetails, boolean restore) {
+                for (OrderDetail detail : orderDetails) {
+                        ProductVariant variant = detail.getProductVariant();
+                        int adjustment = restore ? detail.getQuantity() : -detail.getQuantity();
+                        int newStock = variant.getQuantityInStock() + adjustment;
+
+                        if (!restore && newStock < 0) {
+                                throw new InsufficientStockException(
+                                                "Không đủ tồn kho cho biến thể " + variant.getSku());
+                        }
+
+                        variant.setQuantityInStock(newStock);
+                        productVariantRepository.save(variant);
+
+                        logger.debug("Cập nhật tồn kho cho biến thể {}: {} -> {}",
+                                        variant.getSku(), variant.getQuantityInStock() - adjustment, newStock);
+                }
+        }
+
+        private void updateCouponUsage(Coupon coupon) {
+                coupon.setCurrentUsageCount(coupon.getCurrentUsageCount() + 1);
+
+                // Vô hiệu hóa nếu đã đạt giới hạn sử dụng
+                if (coupon.getMaxTotalUsage() != null && coupon.getCurrentUsageCount() >= coupon.getMaxTotalUsage()) {
+                        coupon.setIsActive(false);
+                        logger.info("Mã giảm giá {} đã bị vô hiệu hóa do đạt giới hạn sử dụng", coupon.getCode());
+                }
+
+                couponRepository.save(coupon);
+        }
+
+        private void validateStatusTransition(String currentStatus, String newStatus) {
+                Set<String> validTransitions = VALID_STATUS_TRANSITIONS.get(currentStatus);
+
+                if (validTransitions == null || !validTransitions.contains(newStatus)) {
+                        throw new InvalidOrderStateException(
+                                        "Không thể chuyển trạng thái từ " + currentStatus + " sang " + newStatus);
+                }
+        }
+
+        private void handleStatusChange(Order order, String oldStatus, String newStatus) {
+                switch (newStatus) {
+                        case "PROCESSING":
+                                // Đơn hàng đã được xác nhận, có thể xử lý thanh toán
+                                break;
+
+                        case "SHIPPED":
+                                order.setActualShippingDate(LocalDateTime.now());
+                                order.setTrackingNumber(generateTrackingNumber());
+                                break;
+
+                        case "DELIVERED":
+                                // Đánh dấu đã thanh toán cho COD
+                                if ("COD".equalsIgnoreCase(order.getPaymentMethod()) &&
+                                                PaymentStatus.UNPAID.equals(order.getPaymentStatus())) {
+                                        order.setPaymentStatus(PaymentStatus.PAID);
+                                }
+                                break;
+
+                        case "CANCELLED_BY_ADMIN":
+                        case "CANCELLED_BY_CUSTOMER":
+                                // Hoàn trả tồn kho nếu chưa hoàn trả
+                                if (!"CANCELLED_BY_ADMIN".equals(oldStatus) &&
+                                                !"CANCELLED_BY_CUSTOMER".equals(oldStatus)) {
+                                        List<OrderDetail> orderDetails = orderDetailRepository
+                                                        .findByOrderId(order.getId());
+                                        updateInventory(orderDetails, true);
+                                }
+                                break;
+
+                        case "RETURNED":
+                                // Xử lý logic trả hàng - hoàn trả tồn kho
+                                List<OrderDetail> orderDetails = orderDetailRepository.findByOrderId(order.getId());
+                                updateInventory(orderDetails, true);
+                                order.setPaymentStatus(PaymentStatus.REFUNDED);
+                                break;
+                }
+        }
+
+        private String generateTrackingNumber() {
+                return "TRK" + System.currentTimeMillis();
+        }
+
+        private OrderResponse buildOrderResponse(Order order, List<OrderDetail> orderDetails) {
+                // Set orderDetails vào order để fromOrder có thể truy cập
+                order.setOrderDetails(orderDetails);
+
+                return OrderResponse.fromOrder(order);
+        }
+
+        @Override
+        public OrderResponse updateOrder(Long id, OrderDTO orderDTO) throws ResourceNotFoundException {
+                // TODO Auto-generated method stub
+                throw new UnsupportedOperationException("Unimplemented method 'updateOrder'");
+        }
+
+        @Override
+        public void deleteOrder(Long orderId) throws ResourceNotFoundException {
+                // TODO Auto-generated method stub
+                throw new UnsupportedOperationException("Unimplemented method 'deleteOrder'");
+        }
+
+        @Override
+        public List<OrderResponse> getOrdersByUserId(Long userId) {
+                // TODO Auto-generated method stub
+                throw new UnsupportedOperationException("Unimplemented method 'getOrdersByUserId'");
+        }
+
+        @Override
+        public Page<OrderResponse> getOrdersByKeyword(String keyword, Pageable pageable) {
+                // TODO Auto-generated method stub
+                throw new UnsupportedOperationException("Unimplemented method 'getOrdersByKeyword'");
+        }
 }
-    

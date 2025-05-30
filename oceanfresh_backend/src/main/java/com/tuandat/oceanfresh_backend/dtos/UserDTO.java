@@ -1,6 +1,6 @@
 package com.tuandat.oceanfresh_backend.dtos;
 
-import java.util.Date;
+import java.time.LocalDate;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -15,7 +15,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class UserDTO {
     @JsonProperty("fullname")
-    private String fullName;
+    private String fullname;
 
     @JsonProperty("phone_number")
     private String phoneNumber = "";
@@ -32,13 +32,7 @@ public class UserDTO {
     private String retypePassword = "";
 
     @JsonProperty("date_of_birth")
-    private Date dateOfBirth;
-
-    @JsonProperty("facebook_account_id")
-    private String facebookAccountId;
-
-    @JsonProperty("google_account_id")
-    private String googleAccountId;
+    private LocalDate dateOfBirth;
 
     @NotNull(message = "Role ID is required")
     @JsonProperty("role_id")

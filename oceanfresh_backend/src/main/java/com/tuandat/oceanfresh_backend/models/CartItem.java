@@ -25,9 +25,10 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 @Table(name = "cart_items")
-public class CartItem {
+public class CartItem extends BaseEntity {
+
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne

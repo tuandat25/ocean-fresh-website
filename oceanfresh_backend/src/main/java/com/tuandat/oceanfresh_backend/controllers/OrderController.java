@@ -2,6 +2,9 @@ package com.tuandat.oceanfresh_backend.controllers;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
@@ -11,21 +14,23 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.tuandat.oceanfresh_backend.dtos.OrderDTO;
-import com.tuandat.oceanfresh_backend.responses.OrderResponse;
+import com.tuandat.oceanfresh_backend.responses.orders.OrderResponse;
 import com.tuandat.oceanfresh_backend.services.orders.IOrderService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-
 
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("${api.prefix}/orders")
 public class OrderController {
     private final IOrderService orderService;
+
+    // Tạo đơn hàng mới
     @PostMapping("")
     public ResponseEntity<?> createOrder(
             @Valid @RequestBody OrderDTO orderDTO,
@@ -38,33 +43,55 @@ public class OrderController {
                         .toList();
                 return ResponseEntity.badRequest().body("Validation errors: " + errorMessages);
             }
-            // Call the service to create the order
-            // Order order = orderService.createOrder(orderDTO);
-            OrderResponse orderResponse = orderService.createOrder(orderDTO);// Replace with actual order response
-            return ResponseEntity.ok("Create order successfully");
+            OrderResponse orderResponse = orderService.createOrder(orderDTO);
+            return ResponseEntity.ok().body(orderResponse);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Internal server error: " + e.getMessage());
+            return ResponseEntity.badRequest().body("Lỗi tạo đơn hàng: " + e.getMessage());
         }
     }
 
-    //Get order by user_id
-    @GetMapping("/{user_id}")
-    public ResponseEntity<?> getOrders(@Valid @PathVariable("user_id") Long userId) {
+    // Lấy danh sách đơn hàng theo user_id
+    @GetMapping("/user/{user_id}")
+    public ResponseEntity<?> getOrdersByUserId(@PathVariable("user_id") Long userId) {
         try {
-            // Call the service to get the orders by user_id
-            // List<Order> orders = orderService.getOrdersByUserId(userId);
-            return ResponseEntity.ok("Get orders successfully");
+            List<OrderResponse> orders = orderService.getOrdersByUserId(userId);
+            return ResponseEntity.ok().body(orders);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Internal server error: " + e.getMessage());
+            return ResponseEntity.badRequest().body("Lỗi lấy danh sách đơn hàng: " + e.getMessage());
         }
     }
 
-    //Update order by order_id
+    // Lấy chi tiết đơn hàng theo ID
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getOrderById(@PathVariable("id") Long id) {
+        try {
+            OrderResponse orderResponse = orderService.getOrderById(id);
+            return ResponseEntity.ok().body(orderResponse);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Lỗi lấy chi tiết đơn hàng: " + e.getMessage());
+        }
+    }
 
+    // Lấy tất cả đơn hàng với phân trang
+    @GetMapping("")
+    public ResponseEntity<?> getAllOrders(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        try {
+            Pageable pageable = PageRequest.of(page, size);
+            Page<OrderResponse> orderPage = orderService.getAllOrders(pageable);
+            return ResponseEntity.ok().body(orderPage);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Lỗi lấy danh sách đơn hàng: " + e.getMessage());
+        }
+    }
+
+    // Cập nhật đơn hàng
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateOrder(@Valid @PathVariable("id") Long id,
-                                         @Valid @RequestBody OrderDTO orderDTO,
-                                         BindingResult result) {
+    public ResponseEntity<?> updateOrder(
+            @PathVariable("id") Long id,
+            @Valid @RequestBody OrderDTO orderDTO,
+            BindingResult result) {
         try {
             if (result.hasErrors()) {
                 List<String> errorMessages = result.getFieldErrors()
@@ -73,24 +100,34 @@ public class OrderController {
                         .toList();
                 return ResponseEntity.badRequest().body("Validation errors: " + errorMessages);
             }
-            // Call the service to update the order by order_id
-            // Order order = orderService.updateOrder(orderId, orderDTO);
-            return ResponseEntity.ok("Update order successfully");
+            OrderResponse updatedOrder = orderService.updateOrder(id, orderDTO);
+            return ResponseEntity.ok().body(updatedOrder);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Internal server error: " + e.getMessage());
+            return ResponseEntity.badRequest().body("Lỗi cập nhật đơn hàng: " + e.getMessage());
         }
     }
 
-    //Soft delete order by order_id
-    @PutMapping("/delete/{id}")
-    public ResponseEntity<?> deleteOrder(@Valid @PathVariable("id") Long id) {
+    // Cập nhật trạng thái đơn hàng
+    @PutMapping("/{id}/status")
+    public ResponseEntity<?> updateOrderStatus(
+            @PathVariable("id") Long id,
+            @RequestParam String status) {
         try {
-            // Call the service to soft delete the order by order_id
-            // Order order = orderService.deleteOrder(orderId);
-            return ResponseEntity.ok("Delete order successfully");
+            OrderResponse updatedOrder = orderService.updateOrderStatus(id, status);
+            return ResponseEntity.ok().body(updatedOrder);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Internal server error: " + e.getMessage());
+            return ResponseEntity.badRequest().body("Lỗi cập nhật trạng thái đơn hàng: " + e.getMessage());
         }
     }
-    
+
+    // Hủy đơn hàng (soft delete)
+    @PutMapping("/{id}/cancel")
+    public ResponseEntity<?> cancelOrder(@PathVariable("id") Long id) {
+        try {
+            orderService.deleteOrder(id);
+            return ResponseEntity.ok().body("Đã hủy đơn hàng thành công");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Lỗi hủy đơn hàng: " + e.getMessage());
+        }
+    }
 }
