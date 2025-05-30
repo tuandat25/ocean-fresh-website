@@ -1,6 +1,7 @@
 package com.tuandat.oceanfresh_backend.services.category;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.data.crossstore.ChangeSetPersister;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 public class CategoryService implements ICategoryService {
     private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
+
     @Override
     @Transactional
     public Category createCategory(CategoryDTO categoryDTO) {
@@ -41,14 +43,16 @@ public class CategoryService implements ICategoryService {
     }
 
     @Override
-    public List<Category> getAllCategories() {
-        return categoryRepository.findAll();
+    public List<CategoryDTO> getAllCategories() {
+        return categoryRepository.findAll().stream()
+                .map(category -> new CategoryDTO(category.getId(), category.getName()))
+                .collect(Collectors.toList());
     }
 
     @Override
     @Transactional
     public Category updateCategory(long categoryId,
-                                   CategoryDTO categoryDTO) {
+            CategoryDTO categoryDTO) {
         Category existingCategory = getCategoryById(categoryId);
         existingCategory.setName(categoryDTO.getName());
         categoryRepository.save(existingCategory);
@@ -67,7 +71,7 @@ public class CategoryService implements ICategoryService {
         } else {
 
             categoryRepository.deleteById(id);
-            return  category;
+            return category;
         }
     }
 }

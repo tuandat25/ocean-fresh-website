@@ -1,9 +1,15 @@
-package com.tuandat.oceanfresh_backend.dtos;
+package com.tuandat.oceanfresh_backend.dtos.product;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Data//toString
 @Getter

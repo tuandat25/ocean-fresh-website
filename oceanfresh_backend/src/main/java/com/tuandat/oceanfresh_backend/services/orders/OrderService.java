@@ -1,23 +1,24 @@
 package com.tuandat.oceanfresh_backend.services.orders;
 
 // import com.tuandat.oceanfresh_backend.dtos.CartItemDTO;
-import com.tuandat.oceanfresh_backend.dtos.OrderDTO;
-import com.tuandat.oceanfresh_backend.dtos.OrderDetailDTO;
-// import com.tuandat.oceanfresh_backend.dtos.OrderWithDetailsDTO;
-import com.tuandat.oceanfresh_backend.exceptions.DataNotFoundException;
-import com.tuandat.oceanfresh_backend.models.*;
-import com.tuandat.oceanfresh_backend.repositories.*;
-import com.tuandat.oceanfresh_backend.responses.OrderResponse;
-import lombok.RequiredArgsConstructor;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+
 import org.modelmapper.ModelMapper;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.*;
+import com.tuandat.oceanfresh_backend.dtos.OrderDTO;
+import com.tuandat.oceanfresh_backend.exceptions.ResourceNotFoundException;
+import com.tuandat.oceanfresh_backend.models.Order;
+import com.tuandat.oceanfresh_backend.models.OrderStatus;
+import com.tuandat.oceanfresh_backend.models.User;
+import com.tuandat.oceanfresh_backend.repositories.OrderRepository;
+import com.tuandat.oceanfresh_backend.repositories.UserRepository;
+import com.tuandat.oceanfresh_backend.responses.OrderResponse;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -37,7 +38,7 @@ public class OrderService implements IOrderService {
         //tìm xem user'id có tồn tại ko
         User user = userRepository
                 .findById(orderDTO.getUserId())
-                .orElseThrow(() -> new DataNotFoundException("Cannot find user with id: "+orderDTO.getUserId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Cannot find user with id: "+orderDTO.getUserId()));
         //convert orderDTO => Order
         //dùng thư viện Model Mapper
         // Tạo một luồng bảng ánh xạ riêng để kiểm soát việc ánh xạ
@@ -46,17 +47,16 @@ public class OrderService implements IOrderService {
         // Cập nhật các trường của đơn hàng từ orderDTO
         Order order = new Order();
         modelMapper.map(orderDTO, order);
-        order.setUser(user);
-        order.setOrderDate(LocalDateTime.now());//lấy thời điểm hiện tại
+        order.setUser(user);        order.setOrderDate(LocalDateTime.now());//lấy thời điểm hiện tại
         order.setStatus(OrderStatus.PENDING);
         //Kiểm tra shipping date phải >= ngày hôm nay
         LocalDate shippingDate = orderDTO.getShippingDate() == null
                 ? LocalDate.now() : orderDTO.getShippingDate();
         if (shippingDate.isBefore(LocalDate.now())) {
-            throw new DataNotFoundException("Date must be at least today !");
+            throw new ResourceNotFoundException("Date must be at least today !");
         }
-        order.setShippingDate(shippingDate);
-        order.setActive(true);//đoạn này nên set sẵn trong sql
+        order.setShippingDateExpected(shippingDate);
+        // Note: Orders don't have an active field, they use status enum instead
         // //EAV-Entity-Attribute-Value model
         // order.setTotalMoney(orderDTO.getTotalMoney());
         // // Lưu vnpTxnRef nếu có
@@ -79,7 +79,7 @@ public class OrderService implements IOrderService {
 
         //     // Tìm thông tin sản phẩm từ cơ sở dữ liệu (hoặc sử dụng cache nếu cần)
         //     Product product = productRepository.findById(productId)
-        //             .orElseThrow(() -> new DataNotFoundException("Product not found with id: " + productId));
+        //             .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productId));
 
         //     // Đặt thông tin cho OrderDetail
         //     orderDetail.setProduct(product);
@@ -147,11 +147,11 @@ public class OrderService implements IOrderService {
     // @Override
     // @Transactional
     // public Order updateOrder(Long id, OrderDTO orderDTO)
-    //         throws DataNotFoundException {
+    //         throws ResourceNotFoundException {
     //     Order order = getOrderById(id);
     //     User existingUser = userRepository.findById(
     //             orderDTO.getUserId()).orElseThrow(() ->
-    //             new DataNotFoundException("Cannot find user with id: " + id));
+    //             new ResourceNotFoundException("Cannot find user with id: " + id));
     //     /*
     //     modelMapper.typeMap(OrderDTO.class, Order.class)
     //             .addMappings(mapper -> mapper.skip(Order::setId));
@@ -234,7 +234,7 @@ public class OrderService implements IOrderService {
     // }
     // @Override
     // @Transactional
-    // public Order updateOrderStatus(Long id, String status) throws DataNotFoundException, IllegalArgumentException {
+    // public Order updateOrderStatus(Long id, String status) throws ResourceNotFoundException, IllegalArgumentException {
     //     // Tìm đơn hàng theo ID
     //     Order order = getOrderById(id); // Sẽ tìm theo ID trước, sau đó tìm theo vnpTxnRef
 
@@ -272,9 +272,9 @@ public class OrderService implements IOrderService {
     //     return orderRepository.save(order);
     // }
     @Override
-    public OrderResponse getOrderById(Long orderId) throws DataNotFoundException {
+    public OrderResponse getOrderById(Long orderId) throws ResourceNotFoundException {
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new DataNotFoundException("Cannot find order with id: " + orderId));
+                .orElseThrow(() -> new ResourceNotFoundException("Cannot find order with id: " + orderId));
         return modelMapper.map(order, OrderResponse.class);
     }
 
@@ -287,9 +287,9 @@ public class OrderService implements IOrderService {
     
 
     @Override
-    public OrderResponse updateOrder(Long id, OrderDTO orderDTO) throws DataNotFoundException {
+    public OrderResponse updateOrder(Long id, OrderDTO orderDTO) throws ResourceNotFoundException {
         Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new DataNotFoundException("Cannot find order with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Cannot find order with id: " + id));
         // Update the order fields using the DTO
         modelMapper.map(orderDTO, order);
         // Save the updated order
@@ -297,14 +297,12 @@ public class OrderService implements IOrderService {
         return modelMapper.map(updatedOrder, OrderResponse.class);
     }
 
-    @Override
-    public void deleteOrder(Long orderId) throws DataNotFoundException{
+    @Override    public void deleteOrder(Long orderId) throws ResourceNotFoundException{
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new DataNotFoundException("Cannot find order with id: " + orderId));
-        // Set active to false for soft delete
-        order.setActive(false);
+                .orElseThrow(() -> new ResourceNotFoundException("Cannot find order with id: " + orderId));
+        // Set status to cancelled for soft delete
+        order.setStatus(OrderStatus.CANCELLED_BY_ADMIN);
         orderRepository.save(order);
-
-}
+    }
 }
     

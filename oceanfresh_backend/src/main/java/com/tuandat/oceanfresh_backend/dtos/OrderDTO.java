@@ -62,8 +62,8 @@ public class OrderDTO {
     @JsonProperty("coupon_code")
     private String couponCode;
 
-    // @JsonProperty("vnp_txn_ref")
-    // private String vnpTxnRef;
+    @JsonProperty("vnp_txn_ref")
+    private String vnpTxnRef;
 
     // @JsonProperty("cart_items")
     // private List<CartItemDTO> cartItems;

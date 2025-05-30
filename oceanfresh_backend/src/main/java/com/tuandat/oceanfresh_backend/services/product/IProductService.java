@@ -1,38 +1,35 @@
 package com.tuandat.oceanfresh_backend.services.product;
 
-import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.web.multipart.MultipartFile;
+import org.springframework.data.domain.Pageable;
 
-import com.tuandat.oceanfresh_backend.dtos.ProductDTO;
-import com.tuandat.oceanfresh_backend.dtos.ProductImageDTO;
-import com.tuandat.oceanfresh_backend.dtos.ProductUpdateDTO;
-import com.tuandat.oceanfresh_backend.models.Product;
+import com.tuandat.oceanfresh_backend.dtos.product.ProductCreateDTO;
+import com.tuandat.oceanfresh_backend.dtos.product.ProductDetailDTO;
+import com.tuandat.oceanfresh_backend.dtos.product.ProductImageDTO;
+import com.tuandat.oceanfresh_backend.dtos.product.ProductVariantDTO;
+import com.tuandat.oceanfresh_backend.dtos.product.ProductVariantRequestDTO;
 import com.tuandat.oceanfresh_backend.models.ProductImage;
-import com.tuandat.oceanfresh_backend.responses.product.ProductResponse;
+import com.tuandat.oceanfresh_backend.responses.product.ProductBaseResponse;
 
 public interface IProductService {
-    Product createProduct(ProductDTO productDTO) throws Exception;
-    Product getProductById(long id) throws Exception;
-    public Page<ProductResponse> getAllProducts(String keyword,
-                                                Long categoryId, PageRequest pageRequest);
-    Product updateProduct(long id, ProductDTO productDTO) throws Exception;
-    void deleteProduct(long id);
-    boolean existsByName(String name);
+    ProductDetailDTO createProduct(ProductCreateDTO productCreateDTO);
+    ProductDetailDTO getProductById(Long productId);
+    ProductDetailDTO getProductBySlug(String slug);
+    Page<ProductBaseResponse> getAllProducts(Pageable pageable); // Phân trang
+    ProductDetailDTO updateProduct(Long productId, ProductDetailDTO productDetailDTO);
+    void deleteProduct(Long productId);
+
+    ProductVariantDTO addVariantToProduct(Long productId, ProductVariantRequestDTO variantRequestDTO);
+    ProductVariantDTO updateProductVariant(Long variantId, ProductVariantRequestDTO variantRequestDTO);
+    void deleteProductVariant(Long variantId);
+    ProductVariantDTO getProductVariantById(Long variantId); // Lấy chi tiết biến thể
+    ProductVariantDTO getProductVariantBySku(String sku);
+    List<ProductVariantDTO> getVariantsByProductId(Long productId); // Lấy danh sách biến thể của 1 sản phẩm
+    ProductVariantDTO findActiveVariantByProductAndAttributes(Long productId, Set<Long> attributeValueIds);
     ProductImage createProductImage(
             Long productId,
             ProductImageDTO productImageDTO) throws Exception;
-
-    List<Product> findProductsByIds(List<Long> productIds);
-    String storeFile(MultipartFile file) throws IOException;    void deleteFile(String filename) throws IOException;
-      // Thêm các phương thức làm việc với thuộc tính sản phẩm
-    Product addProductAttribute(Long productId, Long attributeId, String value) throws Exception;
-    Product updateProductAttribute(Long productId, Long attributeId, String value) throws Exception;
-    Product removeProductAttribute(Long productId, Long attributeId) throws Exception;    Product updateProductWithAttributes(Long productId, ProductDTO productDTO, List<Long> attributeIds, List<String> attributeValues) throws Exception;
-    
-    // Cập nhật sản phẩm với các thuộc tính động theo tên
-    Product updateProductWithDynamicAttributes(Long productId, ProductUpdateDTO productUpdateDTO) throws Exception;
-    }
+}

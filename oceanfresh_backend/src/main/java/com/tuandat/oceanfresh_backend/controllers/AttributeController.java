@@ -15,12 +15,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.tuandat.oceanfresh_backend.dtos.AttributeDTO;
-import com.tuandat.oceanfresh_backend.exceptions.DataNotFoundException;
-import com.tuandat.oceanfresh_backend.models.Attribute;
-import com.tuandat.oceanfresh_backend.responses.AttributeResponse;
+import com.tuandat.oceanfresh_backend.dtos.attribute.AttributeDTO;
+import com.tuandat.oceanfresh_backend.exceptions.ResourceNotFoundException;
+import com.tuandat.oceanfresh_backend.responses.AttributeValueResponse;
 import com.tuandat.oceanfresh_backend.responses.ResponseObject;
 import com.tuandat.oceanfresh_backend.services.attribute.IAttributeService;
+import com.tuandat.oceanfresh_backend.services.attribute.IAttributeValueService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -31,13 +31,14 @@ import lombok.RequiredArgsConstructor;
 public class AttributeController {
     
     private final IAttributeService attributeService;
+    private final IAttributeValueService attributeValueService;
     
     @GetMapping("")
     public ResponseEntity<ResponseObject> getAllAttributes() {
-        List<AttributeResponse> attributes = attributeService.getAllAttributes();
+        List<AttributeDTO> attributes = attributeService.getAllAttributes();
         return ResponseEntity.ok(ResponseObject.builder()
                 .status(HttpStatus.OK)
-                .message("Get all attributes successfully")
+                .message("Lấy danh sách thuộc tính thành công")
                 .data(attributes)
                 .build());
     }
@@ -45,13 +46,30 @@ public class AttributeController {
     @GetMapping("/{id}")
     public ResponseEntity<ResponseObject> getAttributeById(@PathVariable("id") Long id) {
         try {
-            Attribute attribute = attributeService.getAttributeById(id);
+            AttributeDTO attribute = attributeService.getAttributeById(id);
             return ResponseEntity.ok(ResponseObject.builder()
                     .status(HttpStatus.OK)
-                    .message("Get attribute successfully")
-                    .data(AttributeResponse.fromAttribute(attribute))
+                    .message("Lấy thông tin thuộc tính thành công")
+                    .data(attribute)
                     .build());
-        } catch (DataNotFoundException e) {
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                    ResponseObject.builder()
+                            .status(HttpStatus.NOT_FOUND)
+                            .message(e.getMessage())
+                            .build());
+        }
+    }
+      @GetMapping("/code/{code}")
+    public ResponseEntity<ResponseObject> getAttributeByCode(@PathVariable("code") String code) {
+        try {
+            AttributeDTO attribute = attributeService.getAttributeByCode(code);
+            return ResponseEntity.ok(ResponseObject.builder()
+                    .status(HttpStatus.OK)
+                    .message("Lấy thông tin thuộc tính thành công")
+                    .data(attribute)
+                    .build());
+        } catch (ResourceNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
                     ResponseObject.builder()
                             .status(HttpStatus.NOT_FOUND)
@@ -72,26 +90,26 @@ public class AttributeController {
             return ResponseEntity.badRequest().body(
                     ResponseObject.builder()
                             .status(HttpStatus.BAD_REQUEST)
-                            .message("Invalid request data")
+                            .message("Dữ liệu không hợp lệ")
                             .data(errorMessages)
                             .build());
         }
         
-        // Kiểm tra nếu tên thuộc tính đã tồn tại
+        // Kiểm tra nếu tên hoặc mã thuộc tính đã tồn tại
         if (attributeService.existsByName(attributeDTO.getName())) {
             return ResponseEntity.badRequest().body(
                     ResponseObject.builder()
                             .status(HttpStatus.BAD_REQUEST)
-                            .message("Attribute name already exists")
+                            .message("Tên thuộc tính đã tồn tại")
                             .build());
         }
         
-        Attribute newAttribute = attributeService.createAttribute(attributeDTO);
+        AttributeDTO newAttribute = attributeService.createAttribute(attributeDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 ResponseObject.builder()
                         .status(HttpStatus.CREATED)
-                        .message("Create attribute successfully")
-                        .data(AttributeResponse.fromAttribute(newAttribute))
+                        .message("Tạo thuộc tính thành công")
+                        .data(newAttribute)
                         .build());
     }
     
@@ -108,20 +126,20 @@ public class AttributeController {
             return ResponseEntity.badRequest().body(
                     ResponseObject.builder()
                             .status(HttpStatus.BAD_REQUEST)
-                            .message("Invalid request data")
+                            .message("Dữ liệu không hợp lệ")
                             .data(errorMessages)
                             .build());
         }
         
         try {
-            Attribute updatedAttribute = attributeService.updateAttribute(id, attributeDTO);
+            AttributeDTO updatedAttribute = attributeService.updateAttribute(id, attributeDTO);
             return ResponseEntity.ok(
                     ResponseObject.builder()
                             .status(HttpStatus.OK)
-                            .message("Update attribute successfully")
-                            .data(AttributeResponse.fromAttribute(updatedAttribute))
+                            .message("Cập nhật thuộc tính thành công")
+                            .data(updatedAttribute)
                             .build());
-        } catch (DataNotFoundException e) {
+        } catch (ResourceNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
                     ResponseObject.builder()
                             .status(HttpStatus.NOT_FOUND)
@@ -137,9 +155,28 @@ public class AttributeController {
             return ResponseEntity.ok(
                     ResponseObject.builder()
                             .status(HttpStatus.OK)
-                            .message("Delete attribute successfully")
+                            .message("Xóa thuộc tính thành công")
                             .build());
-        } catch (DataNotFoundException e) {
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                    ResponseObject.builder()
+                            .status(HttpStatus.NOT_FOUND)
+                            .message(e.getMessage())
+                            .build());
+        }
+    }
+    
+    @GetMapping("/{id}/values")
+    public ResponseEntity<ResponseObject> getAttributeValues(@PathVariable("id") Long attributeId) {
+        try {
+            List<AttributeValueResponse> values = attributeValueService.getAttributeValuesByAttributeId(attributeId);
+            return ResponseEntity.ok(
+                    ResponseObject.builder()
+                            .status(HttpStatus.OK)
+                            .message("Lấy danh sách giá trị thuộc tính thành công")
+                            .data(values)
+                            .build());
+        } catch (ResourceNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
                     ResponseObject.builder()
                             .status(HttpStatus.NOT_FOUND)
