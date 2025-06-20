@@ -4,16 +4,24 @@ import org.apache.commons.io.FilenameUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
 public class FileUtils {
-    private static String UPLOADS_FOLDER = "uploads";
+    private static final String UPLOADS_FOLDER = "uploads";
+    private static final List<String> ALLOWED_IMAGE_TYPES = Arrays.asList(
+            "image/jpeg", "image/jpg", "image/png", "image/gif", "image/bmp", "image/webp"
+    );
+    private static final List<String> ALLOWED_EXTENSIONS = Arrays.asList(
+            "jpg", "jpeg", "png", "gif", "bmp", "webp"
+    );
+    
     public static void deleteFile(String filename) throws IOException {
         // Đường dẫn đến thư mục chứa file
         java.nio.file.Path uploadDir = Paths.get(UPLOADS_FOLDER);
@@ -24,51 +32,55 @@ public class FileUtils {
         if (Files.exists(filePath)) {
             // Xóa file
             Files.delete(filePath);
-        } else {
-            //throw new FileNotFoundException("File not found: " + filename);
         }
     }
+    
     public static boolean isImageFile(MultipartFile file) {
-        return true;
-        /*
-        String contentType = file.getContentType();
-        return contentType != null && contentType.startsWith("image/");
-         */
-        /*
-        AutoDetectParser parser = new AutoDetectParser();
-        Detector detector = parser.getDetector();
-        try {
-            Metadata metadata = new Metadata();
-            TikaInputStream stream = TikaInputStream.get(file.getInputStream());
-            MediaType mediaType = detector.detect(stream, metadata);
-            String mimeType =  mediaType.toString();
-        } catch (IOException e) {
+        if (file == null || file.isEmpty()) {
             return false;
         }
-        */
+        
+        // Kiểm tra content type
+        String contentType = file.getContentType();
+        if (contentType != null && ALLOWED_IMAGE_TYPES.contains(contentType.toLowerCase())) {
+            return true;
+        }
+        
+        // Kiểm tra extension như fallback
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename != null) {
+            String extension = FilenameUtils.getExtension(originalFilename).toLowerCase();
+            return ALLOWED_EXTENSIONS.contains(extension);
+        }
+        
+        return false;
     }
 
     public static String storeFile(MultipartFile file) throws IOException {
         if (!isImageFile(file) || file.getOriginalFilename() == null) {
             throw new IOException("Invalid image format");
         }
+        
         String filename = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
-        String extension = FilenameUtils.getExtension(filename);  // Lấy extension của file gốc
-        // Thêm UUID và extension vào tên file để đảm bảo tên file là duy nhất và giữ nguyên extension
+        String extension = FilenameUtils.getExtension(filename);
+        
+        // Thêm UUID và extension vào tên file để đảm bảo tên file là duy nhất
         String uniqueFilename = UUID.randomUUID().toString() + "_" + System.nanoTime() + "." + extension;
 
         // Đường dẫn đến thư mục mà bạn muốn lưu file
         java.nio.file.Path uploadDir = Paths.get(UPLOADS_FOLDER);
+        
         // Kiểm tra và tạo thư mục nếu nó không tồn tại
         if (!Files.exists(uploadDir)) {
             Files.createDirectories(uploadDir);
         }
+        
         // Đường dẫn đầy đủ đến file
-        java.nio.file.Path destination = Paths.get(uploadDir.toString(), uniqueFilename);
+        java.nio.file.Path destination = uploadDir.resolve(uniqueFilename);
+        
         // Sao chép file vào thư mục đích
         Files.copy(file.getInputStream(), destination, StandardCopyOption.REPLACE_EXISTING);
+        
         return uniqueFilename;
     }
-
 }
-

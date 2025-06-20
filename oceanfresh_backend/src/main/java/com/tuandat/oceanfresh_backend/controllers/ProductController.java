@@ -15,6 +15,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -38,11 +39,13 @@ import com.tuandat.oceanfresh_backend.dtos.product.ProductVariantDTO;
 import com.tuandat.oceanfresh_backend.dtos.product.ProductVariantRequestDTO;
 import com.tuandat.oceanfresh_backend.exceptions.DuplicateResourceException;
 import com.tuandat.oceanfresh_backend.exceptions.ResourceNotFoundException;
+import com.tuandat.oceanfresh_backend.models.Product;
 import com.tuandat.oceanfresh_backend.models.ProductImage;
 import com.tuandat.oceanfresh_backend.responses.ResponseObject;
 import com.tuandat.oceanfresh_backend.responses.product.ProductBaseResponse;
 import com.tuandat.oceanfresh_backend.services.product.ProductService;
 import com.tuandat.oceanfresh_backend.utils.FileUtils;
+import com.tuandat.oceanfresh_backend.utils.MessageKeys;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -102,11 +105,13 @@ public class ProductController {
                                                         .message("Lỗi khi tạo sản phẩm: " + e.getMessage())
                                                         .build());
                 }
-        }        /**
+        }
+
+        /**
          * API tạo mới sản phẩm kèm ảnh chính
          * 
          * @param productData thông tin sản phẩm dạng JSON
-         * @param mainImage file ảnh chính (không bắt buộc)
+         * @param mainImage   file ảnh chính (không bắt buộc)
          * @return ResponseEntity chứa thông tin sản phẩm đã tạo hoặc thông báo lỗi
          */
         @PostMapping(value = "/with-main-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -114,24 +119,24 @@ public class ProductController {
                         @RequestPart(value = "productData", required = true) String productDataJson,
                         @RequestPart(name = "mainImage", required = false) MultipartFile mainImage,
                         HttpServletRequest request) {
-            
-            logger.info("Request Content-Type: {}", request.getContentType());
-            logger.info("Received productDataJson: {}", productDataJson);
-            logger.info("Received mainImage: {}", mainImage != null ? mainImage.getOriginalFilename() : "null");
-            
-            ProductCreateDTO productData;
-            
-            try {
-                // Chuyển đổi JSON string thành đối tượng ProductCreateDTO
-                ObjectMapper objectMapper = new ObjectMapper();
-                productData = objectMapper.readValue(productDataJson, ProductCreateDTO.class);
-            } catch (Exception e) {
-                logger.error("Lỗi khi parse productData JSON: {}", e.getMessage());
-                return ResponseEntity.badRequest().body(ResponseObject.builder()
-                        .status(HttpStatus.BAD_REQUEST)
-                        .message("Lỗi khi xử lý dữ liệu sản phẩm: " + e.getMessage())
-                        .build());
-            }
+
+                logger.info("Request Content-Type: {}", request.getContentType());
+                logger.info("Received productDataJson: {}", productDataJson);
+                logger.info("Received mainImage: {}", mainImage != null ? mainImage.getOriginalFilename() : "null");
+
+                ProductCreateDTO productData;
+
+                try {
+                        // Chuyển đổi JSON string thành đối tượng ProductCreateDTO
+                        ObjectMapper objectMapper = new ObjectMapper();
+                        productData = objectMapper.readValue(productDataJson, ProductCreateDTO.class);
+                } catch (Exception e) {
+                        logger.error("Lỗi khi parse productData JSON: {}", e.getMessage());
+                        return ResponseEntity.badRequest().body(ResponseObject.builder()
+                                        .status(HttpStatus.BAD_REQUEST)
+                                        .message("Lỗi khi xử lý dữ liệu sản phẩm: " + e.getMessage())
+                                        .build());
+                }
 
                 try {
                         // Xử lý file ảnh chính nếu có
@@ -156,7 +161,7 @@ public class ProductController {
 
                                 // Lưu file ảnh và lấy tên file đã lưu
                                 String fileName = FileUtils.storeFile(mainImage);
-                                
+
                                 // Cập nhật URL ảnh chính trong dữ liệu sản phẩm
                                 productData.setMainImageUrl(fileName);
                         }
@@ -194,123 +199,83 @@ public class ProductController {
                                                         .build());
                 }
         }
-        /**
-         * API upload hình ảnh cho sản phẩm
-         * 
-         * @param productId ID sản phẩm cần upload hình ảnh
-         * @param files     danh sách file hình ảnh
-         * @return ResponseEntity chứa danh sách hình ảnh đã upload hoặc thông báo lỗi
-         */
+
         @PostMapping(value = "uploads/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
         public ResponseEntity<ResponseObject> uploadImages(
                         @PathVariable("id") Long productId,
-                        @ModelAttribute("files") List<MultipartFile> files) {
-                try {
-                        ProductDetailDTO existingProduct = productService.getProductById(productId);
-                        files = files == null ? new ArrayList<>() : files;
-
-                        if (files.size() > ProductImage.MAXIMUM_IMAGES_PER_PRODUCT) {
-                                return ResponseEntity.badRequest().body(
-                                                ResponseObject.builder()
-                                                                .message("Số lượng file không hợp lệ")
-                                                                .status(HttpStatus.BAD_REQUEST)
-                                                                .build());
-                        }
-
-                        List<ProductImage> productImages = new ArrayList<>();
-                        for (MultipartFile file : files) {
-                                if (file.getSize() == 0) {
-                                        continue;
-                                }
-                                // Kiểm tra kích thước file và định dạng
-                                if (file.getSize() > 10 * 1024 * 1024) { // Kích thước > 10MB
-                                        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
-                                                        .body(ResponseObject.builder()
-                                                                        .message("Kích thước file không hợp lệ")
-                                                                        .data(file.getSize())
-                                                                        .status(HttpStatus.PAYLOAD_TOO_LARGE)
-                                                                        .build());
-                                }
-
-                                String contentType = file.getContentType();
-                                if (contentType == null || !contentType.startsWith("image/")) {
-                                        return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
-                                                        .body(ResponseObject.builder()
-                                                                        .message("File phải là hình ảnh")
-                                                                        .status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
-                                                                        .build());
-                                }
-
-                                // Lưu file và cập nhật thumbnail trong DTO
-                                String filename = FileUtils.storeFile(file);
-                                // lưu vào đối tượng product trong DB
-                                ProductImage productImage = productService.createProductImage(
-                                                existingProduct.getId(),
-                                                ProductImageDTO.builder()
-                                                                .imageUrl(filename)
-                                                                .build());
-                                productImages.add(productImage);
-                        }
-
-                        return ResponseEntity.status(HttpStatus.CREATED).body(ResponseObject.builder()
-                                        .message("Upload image successfully")
-                                        .status(HttpStatus.CREATED)
-                                        .data(productImages)
-                                        .build());
-                } catch (ResourceNotFoundException e) {
-                        logger.error("Product not found for image upload: {}", e.getMessage());
-                        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ResponseObject.builder()
-                                        .message(e.getMessage())
-                                        .status(HttpStatus.NOT_FOUND)
-                                        .build());
-                } catch (Exception e) {
-                        logger.error("Lỗi khi upload hình ảnh: {}", e.getMessage(), e);
-                        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ResponseObject.builder()
-                                        .message("Lỗi khi upload hình ảnh: " + e.getMessage())
-                                        .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                                        .build());
+                        @RequestParam("files") List<MultipartFile> files) throws Exception {
+                ProductDetailDTO existingProduct = productService.getProductById(productId);
+                files = files == null ? new ArrayList<MultipartFile>() : files;
+                if (files.size() > ProductImage.MAXIMUM_IMAGES_PER_PRODUCT) {
+                        return ResponseEntity.badRequest().body(
+                                        ResponseObject.builder()
+                                                        .message("Số lượng ảnh tải lên vượt quá giới hạn cho phép")
+                                                        .build());
                 }
+                List<ProductImageDTO> productImageDTOs = new ArrayList<>();
+                for (MultipartFile file : files) {
+                        if (file.getSize() == 0) {
+                                continue;
+                        }
+                        // Kiểm tra kích thước file và định dạng
+                        if (file.getSize() > 10 * 1024 * 1024) { // Kích thước > 10MB
+                                return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                                                .body(ResponseObject.builder()
+                                                                .message("Kích thước ảnh không được vượt quá 10MB")
+                                                                .status(HttpStatus.PAYLOAD_TOO_LARGE)
+                                                                .build());
+                        }
+                        String contentType = file.getContentType();
+                        if (contentType == null || !contentType.startsWith("image/")) {
+                                return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+                                                .body(ResponseObject.builder()
+                                                                .message("File phải là hình ảnh")
+                                                                .status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+                                                                .build());
+                        }
+                        // Lưu file và cập nhật thumbnail trong DTO
+                        String filename = FileUtils.storeFile(file);
+                        // lưu vào đối tượng product trong DB
+                        ProductImage productImage = productService.createProductImage(
+                                        existingProduct.getId(),
+                                        ProductImageDTO.builder()
+                                                        .imageUrl(filename)
+                                                        .build());
+                        // Chuyển sang DTO để trả về
+                        ProductImageDTO dto = ProductImageDTO.builder()
+                                        .productId(productImage.getProduct().getId())
+                                        .imageUrl(productImage.getImageUrl())
+                                        .build();
+                        productImageDTOs.add(dto);
+                }
+
+                return ResponseEntity.ok().body(ResponseObject.builder()
+                                .message("Upload image successfully")
+                                .status(HttpStatus.CREATED)
+                                .data(productImageDTOs)
+                                .build());
         }
 
-        /**
-         * API lấy hình ảnh sản phẩm
-         * 
-         * @param imageName tên file hình ảnh
-         * @return ResponseEntity chứa hình ảnh hoặc hình ảnh mặc định nếu không tìm
-         *         thấy
-         */
         @GetMapping("/images/{imageName}")
         public ResponseEntity<?> viewImage(@PathVariable String imageName) {
                 try {
                         java.nio.file.Path imagePath = Paths.get("uploads/" + imageName);
                         UrlResource resource = new UrlResource(imagePath.toUri());
 
-                        if (resource.exists() && resource.isReadable()) {
+                        if (resource.exists()) {
                                 return ResponseEntity.ok()
                                                 .contentType(MediaType.IMAGE_JPEG)
                                                 .body(resource);
                         } else {
-                                logger.info("{} không tìm thấy, sử dụng ảnh mặc định", imageName);
-                                java.nio.file.Path notFoundImagePath = Paths.get("uploads/notfound.jpeg");
-                                UrlResource notFoundResource = new UrlResource(notFoundImagePath.toUri());
-
-                                if (notFoundResource.exists() && notFoundResource.isReadable()) {
-                                        return ResponseEntity.ok()
-                                                        .contentType(MediaType.IMAGE_JPEG)
-                                                        .body(notFoundResource);
-                                }
-
-                                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ResponseObject.builder()
-                                                .message("Không tìm thấy hình ảnh")
-                                                .status(HttpStatus.NOT_FOUND)
-                                                .build());
+                                logger.info(imageName + " not found");
+                                return ResponseEntity.ok()
+                                                .contentType(MediaType.IMAGE_JPEG)
+                                                .body(new UrlResource(Paths.get("uploads/notfound.jpeg").toUri()));
+                                // return ResponseEntity.notFound().build();
                         }
                 } catch (Exception e) {
-                        logger.error("Lỗi khi lấy hình ảnh {}: {}", imageName, e.getMessage(), e);
-                        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ResponseObject.builder()
-                                        .message("Lỗi khi lấy hình ảnh")
-                                        .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                                        .build());
+                        logger.error("Error occurred while retrieving image: " + e.getMessage());
+                        return ResponseEntity.notFound().build();
                 }
         }
 

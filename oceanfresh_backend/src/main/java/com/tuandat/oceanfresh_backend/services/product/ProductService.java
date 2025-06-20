@@ -346,9 +346,7 @@ public class ProductService implements IProductService{
     
     private ProductBaseResponse mapProductToBaseDTO(Product product) {
         return ProductBaseResponse.fromEntity(product);
-    }
-
-    private ProductDetailDTO mapProductToDetailDTO(Product product) {
+    }    private ProductDetailDTO mapProductToDetailDTO(Product product) {
         ProductDetailDTO dto = modelMapper.map(product, ProductDetailDTO.class);
         if (product.getCategory() != null) {
             dto.setCategoryId(product.getCategory().getId());
@@ -358,6 +356,14 @@ public class ProductService implements IProductService{
             dto.setVariants(product.getVariants().stream()
                     .map(this::mapProductVariantToDTO)
                     .collect(Collectors.toSet()));
+        }        // Map danh sách ảnh
+        if (product.getProductImages() != null) {
+            dto.setImages(product.getProductImages().stream()
+                    .map(image -> ProductImageDTO.builder()
+                            .productId(image.getProduct().getId())
+                            .imageUrl(image.getImageUrl())
+                            .build())
+                    .collect(Collectors.toList()));
         }
         return dto;
     }

@@ -1,15 +1,18 @@
 package com.tuandat.oceanfresh_backend.services.orders;
 
-import com.tuandat.oceanfresh_backend.dtos.OrderDTO;
-import com.tuandat.oceanfresh_backend.dtos.OrderItemDTO;
-import com.tuandat.oceanfresh_backend.exceptions.InsufficientStockException;
-import com.tuandat.oceanfresh_backend.exceptions.InvalidOrderStateException;
-import com.tuandat.oceanfresh_backend.exceptions.ResourceNotFoundException;
-import com.tuandat.oceanfresh_backend.models.*;
-import com.tuandat.oceanfresh_backend.models.Coupon.DiscountType;
-import com.tuandat.oceanfresh_backend.repositories.*;
-import com.tuandat.oceanfresh_backend.responses.orders.OrderResponse;
-import lombok.RequiredArgsConstructor;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -18,16 +21,28 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
+import com.tuandat.oceanfresh_backend.dtos.OrderDTO;
+import com.tuandat.oceanfresh_backend.dtos.OrderItemDTO;
+import com.tuandat.oceanfresh_backend.exceptions.DataNotFoundException;
+import com.tuandat.oceanfresh_backend.exceptions.InsufficientStockException;
+import com.tuandat.oceanfresh_backend.exceptions.InvalidOrderStateException;
+import com.tuandat.oceanfresh_backend.exceptions.ResourceNotFoundException;
+import com.tuandat.oceanfresh_backend.models.Coupon;
+import com.tuandat.oceanfresh_backend.models.Coupon.DiscountType;
+import com.tuandat.oceanfresh_backend.models.Order;
+import com.tuandat.oceanfresh_backend.models.OrderDetail;
+import com.tuandat.oceanfresh_backend.models.OrderStatus;
+import com.tuandat.oceanfresh_backend.models.PaymentStatus;
+import com.tuandat.oceanfresh_backend.models.ProductVariant;
+import com.tuandat.oceanfresh_backend.models.User;
+import com.tuandat.oceanfresh_backend.repositories.CouponRepository;
+import com.tuandat.oceanfresh_backend.repositories.OrderDetailRepository;
+import com.tuandat.oceanfresh_backend.repositories.OrderRepository;
+import com.tuandat.oceanfresh_backend.repositories.ProductVariantRepository;
+import com.tuandat.oceanfresh_backend.repositories.UserRepository;
+import com.tuandat.oceanfresh_backend.responses.orders.OrderResponse;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -60,16 +75,10 @@ public class OrderService implements IOrderService {
         @Override
         @Transactional
         public OrderResponse createOrder(OrderDTO orderDTO) throws Exception {
-                logger.info("Bắt đầu tạo đơn hàng cho người dùng: {}", orderDTO.getUserId());
-
                 // 1. Xác thực và lấy thông tin người dùng (có thể null cho khách vãng lai)
-                User user = null;
-                if (orderDTO.getUserId() != null) {
-                        user = userRepository.findById(orderDTO.getUserId())
-                                        .orElseThrow(() -> new ResourceNotFoundException("Người dùng", "id",
-                                                        orderDTO.getUserId()));
-                }
-
+                User user = userRepository.findById(orderDTO.getUserId())
+                                .orElseThrow(() -> new ResourceNotFoundException("Người dùng", "id",
+                                                orderDTO.getUserId()));
                 // 2. Xác thực sản phẩm trong đơn hàng và tính tổng tiền
                 List<OrderDetail> orderDetails = validateAndCreateOrderDetails(orderDTO.getOrderItems());
                 BigDecimal subtotalAmount = calculateSubtotal(orderDetails);
@@ -93,12 +102,11 @@ public class OrderService implements IOrderService {
                 Order order = Order.builder()
                                 .orderCode(generateOrderCode())
                                 .user(user)
-                                .fullName(orderDTO.getFullname())
+                                .fullName(orderDTO.getFullName())
                                 .email(orderDTO.getEmail())
                                 .phoneNumber(orderDTO.getPhoneNumber())
-                                .shippingAddress(orderDTO.getShippingAddress())
-                                .note(orderDTO.getNote())
-                                .orderDate(LocalDateTime.now())
+                                .shippingAddress(orderDTO.getShippingAddress()).note(orderDTO.getNote())
+                                .orderDate(ZonedDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")).toLocalDateTime())
                                 .status(OrderStatus.PENDING)
                                 .subtotalAmount(subtotalAmount)
                                 .shippingFee(shippingFee)
@@ -138,12 +146,15 @@ public class OrderService implements IOrderService {
 
         @Override
         @Transactional(readOnly = true)
-        public OrderResponse getOrderById(Long orderId) throws ResourceNotFoundException {
+        public Order getOrderById(Long orderId) throws ResourceNotFoundException {
                 Order order = orderRepository.findById(orderId)
                                 .orElseThrow(() -> new ResourceNotFoundException("Đơn hàng", "id", orderId));
 
-                List<OrderDetail> orderDetails = orderDetailRepository.findByOrderId(orderId);
-                return buildOrderResponse(order, orderDetails);
+                if (order == null) {
+                        // Nếu không tìm thấy theo ID, tìm theo vnpTxnRef
+                        order = orderRepository.findByVnpTxnRef(orderId.toString()).orElse(null);
+                }
+                return order;
         }
 
         @Override
@@ -154,31 +165,6 @@ public class OrderService implements IOrderService {
 
                 List<OrderDetail> orderDetails = orderDetailRepository.findByOrderId(order.getId());
                 return buildOrderResponse(order, orderDetails);
-        }
-
-        @Override
-        @Transactional
-        public OrderResponse updateOrderStatus(Long orderId, String newStatus) throws Exception {
-                Order order = orderRepository.findById(orderId)
-                                .orElseThrow(() -> new ResourceNotFoundException("Đơn hàng", "id", orderId));
-
-                String currentStatus = order.getStatus().toString();
-
-                // Xác thực chuyển đổi trạng thái
-                validateStatusTransition(currentStatus, newStatus);
-
-                // Xử lý logic theo trạng thái cụ thể
-                handleStatusChange(order, currentStatus, newStatus);
-
-                // Cập nhật trạng thái
-                order.setStatus(OrderStatus.valueOf(newStatus));
-                Order updatedOrder = orderRepository.save(order);
-
-                logger.info("Đơn hàng {} đã chuyển trạng thái từ {} sang {}", order.getOrderCode(), currentStatus,
-                                newStatus);
-
-                List<OrderDetail> orderDetails = orderDetailRepository.findByOrderId(orderId);
-                return buildOrderResponse(updatedOrder, orderDetails);
         }
 
         @Override
@@ -228,6 +214,172 @@ public class OrderService implements IOrderService {
                 logger.info("Đơn hàng {} đã được khách hàng hủy. Lý do: {}", order.getOrderCode(), reason);
         }
 
+        @Override
+        @Transactional(readOnly = true)
+        public Page<Order> getOrdersByKeyword(String keyword, Pageable pageable) {
+                if (keyword == null || keyword.trim().isEmpty()) {
+                        return orderRepository.findAll(pageable);
+                }
+
+                String searchKeyword = "%" + keyword.trim().toLowerCase() + "%";
+                return orderRepository.findByKeyword(searchKeyword, pageable);
+        }
+
+        @Override
+        @Transactional
+        public Order updateOrderStatus(Long id, String status) throws DataNotFoundException {
+                try {
+                        Order order = orderRepository.findById(id)
+                                        .orElseThrow(() -> new DataNotFoundException(
+                                                        "Không tìm thấy đơn hàng với ID: " + id));
+
+                        String currentStatus = order.getStatus().toString();
+
+                        // Validate status transition
+                        validateStatusTransition(currentStatus, status);
+
+                        // Handle status change logic
+                        handleStatusChange(order, currentStatus, status);
+
+                        // Update status
+                        order.setStatus(OrderStatus.valueOf(status.toUpperCase()));
+                        Order updatedOrder = orderRepository.save(order);
+
+                        logger.info("Đơn hàng {} đã chuyển trạng thái từ {} sang {}",
+                                        order.getOrderCode(), currentStatus, status);
+
+                        return updatedOrder;
+
+                } catch (ResourceNotFoundException e) {
+                        throw new DataNotFoundException(e.getMessage());
+                } catch (Exception e) {
+                        logger.error("Lỗi khi cập nhật trạng thái đơn hàng {}: {}", id, e.getMessage());
+                        throw new RuntimeException("Lỗi cập nhật trạng thái đơn hàng: " + e.getMessage());
+                }
+        }
+
+        @Override
+        @Transactional
+        public Order updateOrder(Long id, OrderDTO orderDTO) throws DataNotFoundException {
+                try {
+                        Order order = orderRepository.findById(id)
+                                        .orElseThrow(() -> new DataNotFoundException(
+                                                        "Không tìm thấy đơn hàng với ID: " + id));
+
+                        // Chỉ cho phép cập nhật một số trường nhất định khi đơn hàng ở trạng thái
+                        // PENDING
+                        if (!OrderStatus.PENDING.equals(order.getStatus())) {
+                                throw new InvalidOrderStateException(
+                                                "Chỉ có thể cập nhật đơn hàng ở trạng thái Chờ xử lý");
+                        }
+
+                        // Validate user exists if userId is provided
+                        if (orderDTO.getUserId() != null) {
+                                User user = userRepository.findById(orderDTO.getUserId())
+                                                .orElseThrow(() -> new DataNotFoundException(
+                                                                "Không tìm thấy người dùng với ID: "
+                                                                                + orderDTO.getUserId()));
+                                order.setUser(user);
+                        }
+
+                        // Update customer information
+                        if (StringUtils.hasText(orderDTO.getFullName())) {
+                                order.setFullName(orderDTO.getFullName().trim());
+                        }
+
+                        if (StringUtils.hasText(orderDTO.getEmail())) {
+                                order.setEmail(orderDTO.getEmail().trim());
+                        }
+
+                        if (StringUtils.hasText(orderDTO.getPhoneNumber())) {
+                                order.setPhoneNumber(orderDTO.getPhoneNumber().trim());
+                        }
+
+                        // Update shipping information
+                        if (StringUtils.hasText(orderDTO.getShippingAddress())) {
+                                order.setShippingAddress(orderDTO.getShippingAddress().trim());
+                                // Recalculate shipping fee if address changed
+                                BigDecimal newShippingFee = calculateShippingFee(
+                                                orderDTO.getShippingAddress(), order.getShippingMethod());
+                                order.setShippingFee(newShippingFee);
+                        }
+
+                        if (StringUtils.hasText(orderDTO.getShippingMethod())) {
+                                order.setShippingMethod(orderDTO.getShippingMethod().trim());
+                                // Recalculate shipping fee if method changed
+                                BigDecimal newShippingFee = calculateShippingFee(
+                                                order.getShippingAddress(), orderDTO.getShippingMethod());
+                                order.setShippingFee(newShippingFee);
+                        }
+
+                        if (orderDTO.getShippingDateExpected() != null) {
+                                order.setShippingDateExpected(orderDTO.getShippingDateExpected());
+                        }
+
+                        // Update payment method
+                        if (StringUtils.hasText(orderDTO.getPaymentMethod())) {
+                                order.setPaymentMethod(orderDTO.getPaymentMethod().trim());
+                        }
+
+                        // Update note
+                        if (orderDTO.getNote() != null) {
+                                order.setNote(orderDTO.getNote().trim());
+                        }
+
+                        // Recalculate total if shipping fee changed
+                        BigDecimal newTotal = order.getSubtotalAmount()
+                                        .add(order.getShippingFee())
+                                        .subtract(order.getDiscountAmount());
+                        order.setTotalAmount(newTotal);
+
+                        Order updatedOrder = orderRepository.save(order);
+
+                        logger.info("Đã cập nhật đơn hàng với mã: {}", updatedOrder.getOrderCode());
+                        return updatedOrder;
+
+                } catch (DataNotFoundException e) {
+                        throw e;
+                } catch (Exception e) {
+                        logger.error("Lỗi khi cập nhật đơn hàng {}: {}", id, e.getMessage());
+                        throw new RuntimeException("Lỗi cập nhật đơn hàng: " + e.getMessage());
+                }
+        }
+
+        @Override
+        @Transactional(readOnly = true)
+        public List<OrderResponse> getOrdersByUserId(Long userId) {
+                try {
+                        // Validate user exists
+                        userRepository.findById(userId)
+                                        .orElseThrow(() -> new DataNotFoundException(
+                                                        "Không tìm thấy người dùng với ID: " + userId));
+
+                        List<Order> orders = orderRepository.findByUserIdOrderByOrderDateDesc(userId);
+                        return orders.stream()
+                                        .map(order -> {
+                                                List<OrderDetail> orderDetails = orderDetailRepository
+                                                                .findByOrderId(order.getId());
+                                                return buildOrderResponse(order, orderDetails);
+                                        })
+                                        .collect(Collectors.toList());
+
+                } catch (Exception e) {
+                        logger.error("Lỗi khi lấy danh sách đơn hàng của user {}: {}", userId, e.getMessage());
+                        throw new RuntimeException("Lỗi lấy danh sách đơn hàng: " + e.getMessage());
+                }
+        }
+
+        @Override
+        @Transactional
+        public void deleteOrder(Long orderId) {
+                Order order = getOrderById(orderId);
+                // no hard-delete, => please soft-delete
+                if (order != null) {
+                        order.setActive(false);
+                        orderRepository.save(order);
+                }
+        }
+
         // ===== CÁC PHƯƠNG THỨC HỖ TRỢ =====
 
         private List<OrderDetail> validateAndCreateOrderDetails(List<OrderItemDTO> orderItems) {
@@ -249,15 +401,8 @@ public class OrderService implements IOrderService {
                                 throw new InsufficientStockException("Không đủ hàng cho sản phẩm " + variant.getSku() +
                                                 ". Còn lại: " + variant.getQuantityInStock() + ", Yêu cầu: "
                                                 + item.getQuantity());
-                        }
-
-                        // Xác thực giá (kiểm tra giá với giá hiện tại)
-                        if (item.getUnitPrice() != null && item.getUnitPrice().compareTo(variant.getPrice()) != 0) {
-                                logger.warn("Giá không khớp cho biến thể {}. Giá mong đợi: {}, Giá cung cấp: {}",
-                                                variant.getSku(), variant.getPrice(), item.getUnitPrice());
-                                // Sử dụng giá hiện tại của biến thể để bảo mật
-                        }
-
+                        } // Luôn sử dụng giá hiện tại từ database để đảm bảo tính bảo mật
+                          // Không chấp nhận giá từ client để tránh thao túng giá
                         BigDecimal priceAtOrder = variant.getPrice();
                         BigDecimal lineTotal = priceAtOrder.multiply(BigDecimal.valueOf(item.getQuantity()));
 
@@ -291,7 +436,7 @@ public class OrderService implements IOrderService {
                         throw new InvalidOrderStateException("Mã giảm giá không còn hiệu lực");
                 }
 
-                LocalDateTime now = LocalDateTime.now();
+                LocalDateTime now = ZonedDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")).toLocalDateTime();
 
                 // Kiểm tra thời gian hiệu lực
                 if (now.isBefore(coupon.getStartDate()) || now.isAfter(coupon.getEndDate())) {
@@ -339,7 +484,9 @@ public class OrderService implements IOrderService {
         }
 
         private String generateOrderCode() {
-                String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+                String timestamp = ZonedDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"))
+                                .toLocalDateTime()
+                                .format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
                 return "OF" + timestamp;
         }
 
@@ -388,9 +535,9 @@ public class OrderService implements IOrderService {
                         case "PROCESSING":
                                 // Đơn hàng đã được xác nhận, có thể xử lý thanh toán
                                 break;
-
                         case "SHIPPED":
-                                order.setActualShippingDate(LocalDateTime.now());
+                                order.setActualShippingDate(
+                                                ZonedDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")).toLocalDateTime());
                                 order.setTrackingNumber(generateTrackingNumber());
                                 break;
 
@@ -433,27 +580,4 @@ public class OrderService implements IOrderService {
                 return OrderResponse.fromOrder(order);
         }
 
-        @Override
-        public OrderResponse updateOrder(Long id, OrderDTO orderDTO) throws ResourceNotFoundException {
-                // TODO Auto-generated method stub
-                throw new UnsupportedOperationException("Unimplemented method 'updateOrder'");
-        }
-
-        @Override
-        public void deleteOrder(Long orderId) throws ResourceNotFoundException {
-                // TODO Auto-generated method stub
-                throw new UnsupportedOperationException("Unimplemented method 'deleteOrder'");
-        }
-
-        @Override
-        public List<OrderResponse> getOrdersByUserId(Long userId) {
-                // TODO Auto-generated method stub
-                throw new UnsupportedOperationException("Unimplemented method 'getOrdersByUserId'");
-        }
-
-        @Override
-        public Page<OrderResponse> getOrdersByKeyword(String keyword, Pageable pageable) {
-                // TODO Auto-generated method stub
-                throw new UnsupportedOperationException("Unimplemented method 'getOrdersByKeyword'");
-        }
 }

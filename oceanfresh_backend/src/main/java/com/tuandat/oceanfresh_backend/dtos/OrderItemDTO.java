@@ -1,13 +1,14 @@
 package com.tuandat.oceanfresh_backend.dtos;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import jakarta.validation.constraints.*;
+
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.math.BigDecimal;
 
 @Data
 @Builder
@@ -23,9 +24,6 @@ public class OrderItemDTO {
     @Max(value = 999, message = "Số lượng không được vượt quá 999")
     private Integer quantity;
     
-    // Giá sẽ được kiểm tra với database, không cần người dùng nhập
-    // Nhưng vẫn nhận để kiểm tra lại
-    @JsonProperty("unit_price")
-    @DecimalMin(value = "0.0", inclusive = false, message = "Đơn giá phải lớn hơn 0")
-    private BigDecimal unitPrice;
+    // Không cần unitPrice - Server sẽ lấy giá trực tiếp từ database
+    // Đảm bảo tính bảo mật và tính toàn vẹn dữ liệu
 }

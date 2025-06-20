@@ -1,21 +1,22 @@
-package com.tuandat.oceanfresh_backend.dtos;
-
-import java.time.LocalDate;
+package com.tuandat.oceanfresh_backend.dtos.auth;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+
+import java.util.Date;
 
 @Data
-@NoArgsConstructor
+@Builder
 @AllArgsConstructor
-public class UserDTO {
+@NoArgsConstructor
+@Getter
+@Setter
+public class UserDTO extends SocialAccountDTO {
+
     @JsonProperty("fullname")
-    private String fullname;
+    private String fullName;
 
     @JsonProperty("phone_number")
     private String phoneNumber = "";
@@ -25,16 +26,22 @@ public class UserDTO {
 
     private String address = "";
 
-    @NotBlank(message = "Password cannot be blank")
+    @NotBlank(message = "Mât khẩu không được để trống")
     private String password = "";
 
     @JsonProperty("retype_password")
     private String retypePassword = "";
 
     @JsonProperty("date_of_birth")
-    private LocalDate dateOfBirth;
+    private Date dateOfBirth;
 
-    @NotNull(message = "Role ID is required")
+    @JsonProperty("facebook_account_id")
+    private String facebookAccountId;
+
+    @JsonProperty("google_account_id")
+    private String googleAccountId;
+
+    @NotNull(message = "Vai trò là bắt buộc")
     @JsonProperty("role_id")
     //role admin not permitted
     private Long roleId;

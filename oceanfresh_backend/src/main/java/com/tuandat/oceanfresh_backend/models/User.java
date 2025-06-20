@@ -1,19 +1,14 @@
 package com.tuandat.oceanfresh_backend.models;
 
-import java.time.LocalDate;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+import jakarta.persistence.*;
+import lombok.*;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import java.util.*;
 
 @Entity
 @Table(name = "users")
@@ -22,37 +17,103 @@ import lombok.Setter;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class User extends BaseEntity {
-
+/*
+ALTER TABLE users
+  MODIFY facebook_account_id VARCHAR(255),
+  MODIFY google_account_id VARCHAR(255);
+* */
+public class User extends BaseEntity implements UserDetails, OAuth2User {
     @Id
-    @GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
+
     @Column(name = "fullname", length = 100)
-    private String fullname;
+    private String fullName;
 
-    @Column(name = "email", length = 150, nullable = false)
-    private String email;
-
-    @Column(name = "phone_number", length = 15)
+    @Column(name = "phone_number", length = 10, nullable = true)
     private String phoneNumber;
 
-    @Column(name = "address", length = 250)
+    // ALTER TABLE users ADD COLUMN email VARCHAR(255) DEFAULT '';
+    @Column(name = "email", length = 255, nullable = true)
+    private String email;
+
+    @Column(name = "address", length = 200)
     private String address;
 
-    @Column(name = "password", length = 255)
-    private String password;
-
+    //ALTER TABLE users ADD COLUMN avatar_url VARCHAR(255) DEFAULT '';
     @Column(name = "avatar_url", length = 255)
     private String avatarUrl;
 
-    @Column(name = "date_of_birth")
-    private LocalDate dateOfBirth;
+    @Column(name = "password", length = 200, nullable = false)
+    private String password;
 
     @Column(name = "is_active")
-    @Builder.Default
-    private Boolean isActive = true;
+    private boolean active;
+
+    @Column(name = "date_of_birth")
+    private Date dateOfBirth;
+
+    @Column(name = "facebook_account_id")
+    private String facebookAccountId;
+
+    @Column(name = "google_account_id")
+    private String googleAccountId;
+
     @ManyToOne
-    @JoinColumn(name = "role_id", nullable = false)
+    @JoinColumn(name = "role_id")
     private Role role;
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        List<SimpleGrantedAuthority> authorityList = new ArrayList<>();
+        authorityList.add(new SimpleGrantedAuthority("ROLE_"+getRole().getName().toUpperCase()));
+        //authorityList.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
+
+        return authorityList;
+    }
+    @Override
+    public String getUsername() {
+        if (phoneNumber != null && !phoneNumber.isEmpty()) {
+            return phoneNumber;
+        } else if (email != null && !email.isEmpty()) {
+            return email;
+        }
+        return "";
+    }
+
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return true;
+    }
+
+    //Login facebook
+    @Override
+    public Map<String, Object> getAttributes() {
+        return new HashMap<String, Object>();
+    }
+    @Override
+    public String getName() {
+        return getAttribute("name");
+    }
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+
+    @JsonManagedReference
+    private List<Comment> comments = new ArrayList<>();
 }
+

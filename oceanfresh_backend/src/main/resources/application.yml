@@ -5,7 +5,8 @@ spring:
     url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/oceanfreshdb?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
     driver-class-name: com.mysql.cj.jdbc.Driver
     username: root
-    password: 
+    password:
+     
   jpa:
     show-sql: true
     hibernate:
@@ -82,5 +83,10 @@ management:
       exposure:
         #include: "health"
         include: "health, info"
-
+vnpay:
+  pay-url: "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
+  return-url: "${VNPAY_RETURN_URI:http://localhost:4200/payments/payment-callback}"
+  tmn-code: "6G3AN0SL" # Add your TMN code here
+  secret-key: "LU4F8DJAWYIVK459NW35SKK5ELHCNOLC" # Add your secret key here
+  api-url: "https://sandbox.vnpayment.vn/merchant_webapi/api/transaction"
 

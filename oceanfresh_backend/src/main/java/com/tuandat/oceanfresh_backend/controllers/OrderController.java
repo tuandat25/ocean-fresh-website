@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.tuandat.oceanfresh_backend.dtos.OrderDTO;
+import com.tuandat.oceanfresh_backend.models.Order;
 import com.tuandat.oceanfresh_backend.responses.orders.OrderResponse;
 import com.tuandat.oceanfresh_backend.services.orders.IOrderService;
 
@@ -65,7 +66,7 @@ public class OrderController {
     @GetMapping("/{id}")
     public ResponseEntity<?> getOrderById(@PathVariable("id") Long id) {
         try {
-            OrderResponse orderResponse = orderService.getOrderById(id);
+            Order orderResponse = orderService.getOrderById(id);
             return ResponseEntity.ok().body(orderResponse);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Lỗi lấy chi tiết đơn hàng: " + e.getMessage());
@@ -100,7 +101,7 @@ public class OrderController {
                         .toList();
                 return ResponseEntity.badRequest().body("Validation errors: " + errorMessages);
             }
-            OrderResponse updatedOrder = orderService.updateOrder(id, orderDTO);
+            Order updatedOrder = orderService.updateOrder(id, orderDTO);
             return ResponseEntity.ok().body(updatedOrder);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Lỗi cập nhật đơn hàng: " + e.getMessage());
@@ -113,7 +114,7 @@ public class OrderController {
             @PathVariable("id") Long id,
             @RequestParam String status) {
         try {
-            OrderResponse updatedOrder = orderService.updateOrderStatus(id, status);
+            Order updatedOrder = orderService.updateOrderStatus(id, status);
             return ResponseEntity.ok().body(updatedOrder);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Lỗi cập nhật trạng thái đơn hàng: " + e.getMessage());
