@@ -19,6 +19,7 @@ public interface IProductService {
     ProductDetailDTO getProductById(Long productId);
     ProductDetailDTO getProductBySlug(String slug);
     Page<ProductBaseResponse> getAllProducts(Pageable pageable); // Phân trang
+    Page<ProductBaseResponse> getAllProductsIsActive(Pageable pageable); // Phân trang
     ProductDetailDTO updateProduct(Long productId, ProductDetailDTO productDetailDTO);
     void deleteProduct(Long productId);
 

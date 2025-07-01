@@ -1,22 +1,29 @@
 package com.tuandat.oceanfresh_backend.controllers;
 
+import java.util.List;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.tuandat.oceanfresh_backend.components.LocalizationUtils;
-import com.tuandat.oceanfresh_backend.dtos.*;
+import com.tuandat.oceanfresh_backend.dtos.OrderDetailDTO;
 import com.tuandat.oceanfresh_backend.exceptions.DataNotFoundException;
 import com.tuandat.oceanfresh_backend.models.OrderDetail;
 import com.tuandat.oceanfresh_backend.responses.ResponseObject;
 import com.tuandat.oceanfresh_backend.responses.orders.OrderDetailResponse;
 import com.tuandat.oceanfresh_backend.services.orderdetails.OrderDetailService;
-import com.tuandat.oceanfresh_backend.utils.MessageKeys;
-// import io.swagger.v3.oas.annotations.Operation;
-// import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-import java.util.List;
 
 @RestController
 @RequestMapping("${api.prefix}/order_details")
@@ -46,7 +53,7 @@ public class OrderDetailController {
         OrderDetailResponse orderDetailResponse = OrderDetailResponse.fromOrderDetail(orderDetail);
         return ResponseEntity.ok().body(
                 ResponseObject.builder()
-                        .message("Get order detail successfully")
+                        .message("Lấy chi tiết đơn hàng thành công")
                         .status(HttpStatus.OK)
                         .data(orderDetailResponse)
                         .build()
@@ -92,8 +99,7 @@ public class OrderDetailController {
         orderDetailService.deleteById(id);
         return ResponseEntity.ok()
                 .body(ResponseObject.builder()
-                        .message(localizationUtils
-                                .getLocalizedMessage(MessageKeys.DELETE_ORDER_DETAIL_SUCCESSFULLY))
+                        .message("Xóa chi tiết đơn hàng thành công")
                         .build());
     }
 }

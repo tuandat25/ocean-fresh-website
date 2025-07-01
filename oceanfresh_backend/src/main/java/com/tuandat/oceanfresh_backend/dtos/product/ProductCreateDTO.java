@@ -1,5 +1,7 @@
 package com.tuandat.oceanfresh_backend.dtos.product;
 
+import java.time.LocalDate;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import jakarta.validation.constraints.NotBlank;
@@ -35,4 +37,24 @@ public class ProductCreateDTO { // Đổi tên để rõ ràng hơn
 
     @JsonProperty("is_active")
     private Boolean isActive = true; // Mặc định là active
+    
+    // Các trường mới được thêm vào
+    @JsonProperty("storage_instruction")
+    @Size(max = 255, message = "Storage instruction must be less than 255 characters")
+    private String storageInstruction;
+
+    @JsonProperty("harvest_date")
+    private LocalDate harvestDate;
+
+    @JsonProperty("freshness_guarantee_period")
+    @Size(max = 50, message = "Freshness guarantee period must be less than 50 characters")
+    private String freshnessGuaranteePeriod;
+
+    @JsonProperty("delivery_area")
+    @Size(max = 255, message = "Delivery area must be less than 255 characters")
+    private String deliveryArea;
+
+    @JsonProperty("return_policy")
+    @Size(max = 255, message = "Return policy must be less than 255 characters")
+    private String returnPolicy;
 }

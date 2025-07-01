@@ -137,6 +137,13 @@ public class ProductService implements IProductService{
         existingProduct.setOrigin(productDetailDTO.getOrigin());
         existingProduct.setMainImageUrl(productDetailDTO.getMainImageUrl());
         existingProduct.setActive(productDetailDTO.isActive());
+        
+        // Cập nhật các trường mới
+        existingProduct.setStorageInstruction(productDetailDTO.getStorageInstruction());
+        existingProduct.setHarvestDate(productDetailDTO.getHarvestDate());
+        existingProduct.setFreshnessGuaranteePeriod(productDetailDTO.getFreshnessGuaranteePeriod());
+        existingProduct.setDeliveryArea(productDetailDTO.getDeliveryArea());
+        existingProduct.setReturnPolicy(productDetailDTO.getReturnPolicy());
 
         if (productDetailDTO.getCategoryId() != null) {
             Category category = categoryRepository.findById(productDetailDTO.getCategoryId())
@@ -169,10 +176,6 @@ public class ProductService implements IProductService{
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm", "id", productId));
 
-        if (productVariantRepository.findBySku(variantRequestDTO.getSku()).isPresent()) {
-            throw new DuplicateResourceException("Sản phẩm", "SKU", variantRequestDTO.getSku());
-        }
-
         validateAttributeCombination(productId, null, variantRequestDTO.getSelectedAttributeValueIds());
 
         ProductVariant variant = modelMapper.map(variantRequestDTO, ProductVariant.class);
@@ -183,6 +186,18 @@ public class ProductService implements IProductService{
 
         if (!StringUtils.hasText(variant.getVariantName())) {
             variant.setVariantName(generateVariantName(product, selectedAttributeValues));
+        }
+
+        // Generate SKU automatically if not provided or is empty
+        if (!StringUtils.hasText(variantRequestDTO.getSku())) {
+            String generatedSku = generateSku(product, selectedAttributeValues);
+            variant.setSku(generatedSku);
+            logger.info("Generated SKU for variant: {}", generatedSku);
+        } else {
+            // Check SKU uniqueness only if user provided a custom SKU
+            if (productVariantRepository.findBySku(variantRequestDTO.getSku()).isPresent()) {
+                throw new DuplicateResourceException("Biến thể sản phẩm", "SKU", variantRequestDTO.getSku());
+            }
         }
 
         ProductVariant savedVariant = productVariantRepository.save(variant);
@@ -325,6 +340,71 @@ public class ProductService implements IProductService{
     }
 
     // --- Helper & Mapper Methods ---
+    
+    /**
+     * Tự động tạo SKU theo format: PRODUCT_SLUG-ATTRIBUTE_VALUES-UNIQUE_ID
+     * Ví dụ: ca-chua-do-500g-ABC123
+     */
+    private String generateSku(Product product, Set<AttributeValue> attributeValues) {
+        StringBuilder skuBuilder = new StringBuilder();
+        
+        // 1. Thêm slug của product (rút gọn nếu quá dài)
+        String productSlug = product.getSlug();
+        if (productSlug.length() > 15) {
+            productSlug = productSlug.substring(0, 15);
+        }
+        skuBuilder.append(productSlug.toUpperCase());
+        
+        // 2. Thêm các attribute values (sắp xếp theo tên attribute để đảm bảo tính nhất quán)
+        if (attributeValues != null && !attributeValues.isEmpty()) {
+            String attributeString = attributeValues.stream()
+                    .sorted(Comparator.comparing(av -> av.getAttribute().getName()))
+                    .map(av -> normalizeAttributeForSku(av.getValue()))
+                    .collect(Collectors.joining("-"));
+            
+            if (StringUtils.hasText(attributeString)) {
+                skuBuilder.append("-").append(attributeString);
+            }
+        }
+        
+        // 3. Thêm unique identifier để tránh trùng lặp
+        String baseSkuCandidate = skuBuilder.toString();
+        String finalSku = baseSkuCandidate;
+        int counter = 1;
+        
+        // Kiểm tra và tăng counter nếu SKU đã tồn tại
+        while (productVariantRepository.findBySku(finalSku).isPresent()) {
+            finalSku = baseSkuCandidate + "-" + String.format("%03d", counter);
+            counter++;
+        }
+        
+        // Giới hạn độ dài SKU tối đa 50 ký tự
+        if (finalSku.length() > 50) {
+            String uniquePart = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+            finalSku = baseSkuCandidate.substring(0, Math.min(baseSkuCandidate.length(), 38)) + "-" + uniquePart;
+        }
+        
+        return finalSku;
+    }
+    
+    /**
+     * Chuẩn hóa attribute value để tạo SKU
+     */
+    private String normalizeAttributeForSku(String value) {
+        if (!StringUtils.hasText(value)) return "";
+        
+        // Loại bỏ dấu tiếng Việt và ký tự đặc biệt, chuyển thành uppercase
+        String normalized = Normalizer.normalize(value.trim(), Normalizer.Form.NFD);
+        Pattern pattern = Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
+        String result = pattern.matcher(normalized).replaceAll("");
+        
+        // Chỉ giữ lại chữ cái, số và một số ký tự đặc biệt
+        result = result.replaceAll("[^a-zA-Z0-9]", "").toUpperCase();
+        
+        // Giới hạn độ dài
+        return result.length() > 10 ? result.substring(0, 10) : result;
+    }
+
     private String generateSlug(String name) {
         if (!StringUtils.hasText(name)) return UUID.randomUUID().toString();
         String nowhitespace = name.trim().toLowerCase().replaceAll("\\s+", "-");
@@ -415,7 +495,11 @@ public class ProductService implements IProductService{
         return productImageRepository.save(newProductImage);
     }
 
-   
-
+    @Override
+    public Page<ProductBaseResponse> getAllProductsIsActive(Pageable pageable) {
+        // TODO Auto-generated method stub
+        Page<Product> productPage = productRepository.findAllByIsActiveTrue(pageable);
+        return productPage.map(this::mapProductToBaseDTO);
+    }
 }
 

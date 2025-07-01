@@ -30,6 +30,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tuandat.oceanfresh_backend.dtos.product.ProductCreateDTO;
@@ -62,13 +64,14 @@ public class ProductController {
         private static final Logger logger = LoggerFactory.getLogger(ProductController.class);
 
         /**
-         * API tạo mới sản phẩm
+         * API tạo mới sản phẩm - chỉ admin
          * 
          * @param productDetailDTO thông tin sản phẩm cần tạo
          * @param bindingResult    kết quả validation
          * @return ResponseEntity chứa thông tin sản phẩm đã tạo hoặc thông báo lỗi
          */
         @PostMapping(value = "")
+        @PreAuthorize("hasRole('ADMIN')")
         public ResponseEntity<ResponseObject> createProduct(@Valid @RequestBody ProductCreateDTO productCreateDTO,
                         BindingResult bindingResult) {
 
@@ -115,6 +118,7 @@ public class ProductController {
          * @return ResponseEntity chứa thông tin sản phẩm đã tạo hoặc thông báo lỗi
          */
         @PostMapping(value = "/with-main-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+        @PreAuthorize("hasRole('ADMIN')")
         public ResponseEntity<ResponseObject> createProductWithMainImage(
                         @RequestPart(value = "productData", required = true) String productDataJson,
                         @RequestPart(name = "mainImage", required = false) MultipartFile mainImage,
@@ -201,6 +205,7 @@ public class ProductController {
         }
 
         @PostMapping(value = "uploads/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+        @PreAuthorize("hasRole('ADMIN')")
         public ResponseEntity<ResponseObject> uploadImages(
                         @PathVariable("id") Long productId,
                         @RequestParam("files") List<MultipartFile> files) throws Exception {
@@ -259,36 +264,99 @@ public class ProductController {
         @GetMapping("/images/{imageName}")
         public ResponseEntity<?> viewImage(@PathVariable String imageName) {
                 try {
+                        // Kiểm tra nếu imageName là một URL (http hoặc https)
+                        if (imageName.startsWith("http://") || imageName.startsWith("https://")) {
+                                // Redirect đến URL gốc
+                                return ResponseEntity.status(HttpStatus.FOUND)
+                                                .location(java.net.URI.create(imageName))
+                                                .build();
+                        }
+
+                        // Xử lý file local trong thư mục uploads
                         java.nio.file.Path imagePath = Paths.get("uploads/" + imageName);
                         UrlResource resource = new UrlResource(imagePath.toUri());
 
                         if (resource.exists()) {
+                                // Xác định content type dựa trên extension
+                                String contentType = getContentTypeFromFileName(imageName);
                                 return ResponseEntity.ok()
-                                                .contentType(MediaType.IMAGE_JPEG)
+                                                .contentType(MediaType.parseMediaType(contentType))
                                                 .body(resource);
                         } else {
-                                logger.info(imageName + " not found");
-                                return ResponseEntity.ok()
-                                                .contentType(MediaType.IMAGE_JPEG)
-                                                .body(new UrlResource(Paths.get("uploads/notfound.jpeg").toUri()));
-                                // return ResponseEntity.notFound().build();
+                                logger.info(imageName + " not found in uploads folder");
+                                // Trả về ảnh mặc định
+                                return fallbackToDefaultImage();
                         }
                 } catch (Exception e) {
                         logger.error("Error occurred while retrieving image: " + e.getMessage());
-                        return ResponseEntity.notFound().build();
+                        return fallbackToDefaultImage();
                 }
         }
 
         /**
-         * API lấy danh sách sản phẩm theo trang
-         * 
-         * @param pageable thông tin phân trang
-         * @return ResponseEntity chứa danh sách sản phẩm theo trang
+         * Xác định content type dựa trên extension của file
          */
+        private String getContentTypeFromFileName(String fileName) {
+                String extension = fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase();
+                return switch (extension) {
+                        case "jpg", "jpeg" -> "image/jpeg";
+                        case "png" -> "image/png";
+                        case "gif" -> "image/gif";
+                        case "webp" -> "image/webp";
+                        case "bmp" -> "image/bmp";
+                        case "svg" -> "image/svg+xml";
+                        default -> "image/jpeg"; // Default fallback
+                };
+        }
+
+        // API lấy danh sách sản phẩm theo trang
+
+        
         @GetMapping
-        public ResponseEntity<ResponseObject> getAllProducts(@PageableDefault(size = 10) Pageable pageable) {
+        public ResponseEntity<ResponseObject> getAllProducts(@PageableDefault(size = 10) Pageable pageable,
+                        Authentication authentication) {
                 try {
-                        Page<ProductBaseResponse> products = productService.getAllProducts(pageable);
+                        Page<ProductBaseResponse> products;
+                        
+                        // Lấy authentication từ SecurityContext nếu parameter null
+                        if (authentication == null) {
+                                authentication = SecurityContextHolder.getContext().getAuthentication();
+                        }
+                        
+                        // Kiểm tra xem user có role ADMIN không
+                        boolean isAdmin = authentication != null &&
+                                        authentication.isAuthenticated() &&
+                                        authentication.getAuthorities().stream()
+                                                        .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
+
+                        if (isAdmin) {
+                                // Admin có thể xem tất cả sản phẩm (kể cả inactive)
+                                products = productService.getAllProducts(pageable);
+                        } else {
+                                // User thường và guest chỉ xem sản phẩm active
+                                products = productService.getAllProductsIsActive(pageable);
+                        }
+
+                        return ResponseEntity.ok(ResponseObject.builder()
+                                        .message("Lấy danh sách sản phẩm thành công")
+                                        .status(HttpStatus.OK)
+                                        .data(products)
+                                        .build());
+                } catch (Exception e) {
+                        logger.error("Lỗi khi lấy danh sách sản phẩm: {}", e.getMessage(), e);
+                        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ResponseObject.builder()
+                                        .message("Lỗi khi lấy danh sách sản phẩm")
+                                        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                        .build());
+                }
+        }
+
+        // API lấy danh sách sản phẩm theo trang dành cho khách hàng
+        @GetMapping("/get-all-products")
+        public ResponseEntity<ResponseObject> getAllProductsIsActiveTrue(
+                        @PageableDefault(size = 10) Pageable pageable) {
+                try {
+                        Page<ProductBaseResponse> products = productService.getAllProductsIsActive(pageable);
                         return ResponseEntity.ok(ResponseObject.builder()
                                         .message("Lấy danh sách sản phẩm thành công")
                                         .status(HttpStatus.OK)
@@ -363,13 +431,9 @@ public class ProductController {
 
         /**
          * API cập nhật sản phẩm
-         * 
-         * @param productId        ID sản phẩm cần cập nhật
-         * @param productDetailDTO thông tin sản phẩm mới
-         * @param bindingResult    kết quả validation
-         * @return ResponseEntity chứa thông tin sản phẩm đã cập nhật hoặc thông báo lỗi
          */
         @PutMapping("/{productId}")
+        @PreAuthorize("hasRole('ADMIN')")
         public ResponseEntity<ResponseObject> updateProduct(
                         @PathVariable Long productId,
                         @Valid @RequestBody ProductDetailDTO productDetailDTO,
@@ -411,13 +475,11 @@ public class ProductController {
                 }
         }
 
-        /**
-         * API xóa sản phẩm theo ID
-         * 
-         * @param productId ID sản phẩm cần xóa
-         * @return ResponseEntity chứa thông báo xóa thành công hoặc thông báo lỗi
-         */
+        // /**
+        // * API xóa sản phẩm theo ID
+        // */
         @DeleteMapping("/{productId}")
+        @PreAuthorize("hasRole('ADMIN')")
         public ResponseEntity<ResponseObject> deleteProduct(@PathVariable Long productId) {
                 try {
                         productService.deleteProduct(productId);
@@ -441,16 +503,12 @@ public class ProductController {
 
         /**
          * API thêm biến thể cho sản phẩm
-         * 
-         * @param productId         ID sản phẩm cần thêm biến thể
-         * @param variantRequestDTO thông tin biến thể cần thêm
-         * @param bindingResult     kết quả validation
-         * @return ResponseEntity chứa thông tin biến thể đã thêm hoặc thông báo lỗi
          */
         @PostMapping("/{productId}/variants")
+        @PreAuthorize("hasRole('ADMIN')")
         public ResponseEntity<ResponseObject> addVariantToProduct(
                         @PathVariable Long productId,
-                        @Valid @RequestBody ProductVariantRequestDTO variantRequestDTO,
+                        @RequestBody @Valid ProductVariantRequestDTO variantRequestDTO,
                         BindingResult bindingResult) {
                 try {
                         if (bindingResult.hasErrors()) {
@@ -492,13 +550,9 @@ public class ProductController {
 
         /**
          * API cập nhật biến thể sản phẩm
-         * 
-         * @param variantId         ID biến thể cần cập nhật
-         * @param variantRequestDTO thông tin biến thể mới
-         * @param bindingResult     kết quả validation
-         * @return ResponseEntity chứa thông tin biến thể đã cập nhật hoặc thông báo lỗi
          */
         @PutMapping("/variants/{variantId}")
+        @PreAuthorize("hasRole('ADMIN')")
         public ResponseEntity<ResponseObject> updateProductVariant(
                         @PathVariable Long variantId,
                         @Valid @RequestBody ProductVariantRequestDTO variantRequestDTO,
@@ -543,11 +597,9 @@ public class ProductController {
 
         /**
          * API xóa biến thể sản phẩm
-         * 
-         * @param variantId ID biến thể cần xóa
-         * @return ResponseEntity chứa thông báo xóa thành công hoặc thông báo lỗi
          */
         @DeleteMapping("/variants/{variantId}")
+        @PreAuthorize("hasRole('ADMIN')")
         public ResponseEntity<ResponseObject> deleteProductVariant(@PathVariable Long variantId) {
                 try {
                         productService.deleteProductVariant(variantId);
@@ -571,9 +623,6 @@ public class ProductController {
 
         /**
          * API lấy chi tiết biến thể sản phẩm theo ID
-         * 
-         * @param variantId ID biến thể cần lấy thông tin
-         * @return ResponseEntity chứa thông tin chi tiết biến thể hoặc thông báo lỗi
          */
         @GetMapping("/variants/{variantId}")
         public ResponseEntity<ResponseObject> getProductVariantById(@PathVariable Long variantId) {
@@ -600,9 +649,6 @@ public class ProductController {
 
         /**
          * API lấy chi tiết biến thể sản phẩm theo SKU
-         * 
-         * @param sku SKU của biến thể cần lấy thông tin
-         * @return ResponseEntity chứa thông tin chi tiết biến thể hoặc thông báo lỗi
          */
         @GetMapping("/variants/sku/{sku}")
         public ResponseEntity<ResponseObject> getProductVariantBySku(@PathVariable String sku) {
@@ -629,9 +675,6 @@ public class ProductController {
 
         /**
          * API lấy danh sách biến thể của sản phẩm
-         * 
-         * @param productId ID sản phẩm cần lấy danh sách biến thể
-         * @return ResponseEntity chứa danh sách biến thể hoặc thông báo lỗi
          */
         @GetMapping("/{productId}/variants")
         public ResponseEntity<ResponseObject> getVariantsByProductId(@PathVariable Long productId) {
@@ -661,13 +704,7 @@ public class ProductController {
                 }
         }
 
-        /**
-         * API tìm biến thể sản phẩm theo các thuộc tính
-         * 
-         * @param productId         ID sản phẩm
-         * @param attributeValueIds danh sách ID của các giá trị thuộc tính
-         * @return ResponseEntity chứa thông tin biến thể tương ứng hoặc thông báo lỗi
-         */
+        // API tìm biến thể sản phẩm theo các thuộc tính
         @GetMapping("/{productId}/variants/find")
         public ResponseEntity<ResponseObject> findActiveVariantByAttributes(
                         @PathVariable Long productId,
@@ -691,6 +728,72 @@ public class ProductController {
                                         .message("Lỗi khi tìm biến thể sản phẩm theo thuộc tính")
                                         .status(HttpStatus.INTERNAL_SERVER_ERROR)
                                         .build());
+                }
+        }
+
+        /**
+         * API để proxy image từ URL bên ngoài
+         * Sử dụng: /api/products/images/proxy?url=https://example.com/image.jpg
+         */
+        @GetMapping("/images/proxy")
+        public ResponseEntity<?> proxyImage(@RequestParam String url) {
+                try {
+                        // Validate URL
+                        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                                return ResponseEntity.badRequest()
+                                                .body("Invalid URL. Must start with http:// or https://");
+                        }
+
+                        // Tạo connection đến URL
+                        java.net.URI imageUri = java.net.URI.create(url);
+                        java.net.URL imageUrl = imageUri.toURL();
+                        java.net.HttpURLConnection connection = (java.net.HttpURLConnection) imageUrl.openConnection();
+                        connection.setRequestMethod("GET");
+                        connection.setConnectTimeout(5000); // 5 seconds timeout
+                        connection.setReadTimeout(10000); // 10 seconds timeout
+                        connection.setRequestProperty("User-Agent", "OceanFresh-Backend/1.0");
+
+                        // Kiểm tra response code
+                        int responseCode = connection.getResponseCode();
+                        if (responseCode != 200) {
+                                logger.warn("Failed to fetch image from URL: {} - Response code: {}", url,
+                                                responseCode);
+                                return fallbackToDefaultImage();
+                        }
+
+                        // Lấy content type từ response header
+                        String contentType = connection.getContentType();
+                        if (contentType == null || !contentType.startsWith("image/")) {
+                                logger.warn("URL does not point to an image: {}", url);
+                                return fallbackToDefaultImage();
+                        }
+
+                        // Đọc dữ liệu ảnh
+                        byte[] imageData = connection.getInputStream().readAllBytes();
+
+                        return ResponseEntity.ok()
+                                        .contentType(MediaType.parseMediaType(contentType))
+                                        .header("Cache-Control", "max-age=3600") // Cache 1 hour
+                                        .body(imageData);
+
+                } catch (Exception e) {
+                        logger.error("Error proxying image from URL: {} - {}", url, e.getMessage());
+                        return fallbackToDefaultImage();
+                }
+        }
+
+        /**
+         * Fallback về ảnh mặc định khi có lỗi
+         */
+        private ResponseEntity<?> fallbackToDefaultImage() {
+                try {
+                        UrlResource defaultResource = new UrlResource(Paths.get("uploads/default-product.svg").toUri());
+                        return ResponseEntity.ok()
+                                        .contentType(MediaType.parseMediaType("image/svg+xml"))
+                                        .body(defaultResource);
+                } catch (Exception e) {
+                        logger.error("Error loading default image: {}", e.getMessage());
+                        return ResponseEntity.notFound().build();
                 }
         }
 }

@@ -56,10 +56,6 @@ public class OrderService implements IOrderService {
         private final ProductVariantRepository productVariantRepository;
         private final CouponRepository couponRepository;
 
-        // Các hằng số tạo đơn hàng
-        private static final BigDecimal DEFAULT_SHIPPING_FEE = BigDecimal.valueOf(30000); // 30k VND
-        private static final String DEFAULT_SHIPPING_METHOD = "STANDARD";
-
         // Các chuyển trạng thái hợp lệ
         private static final Map<String, Set<String>> VALID_STATUS_TRANSITIONS = Map.of(
                         "PENDING",
@@ -114,7 +110,7 @@ public class OrderService implements IOrderService {
                                 .totalAmount(totalAmount)
                                 .shippingMethod(StringUtils.hasText(orderDTO.getShippingMethod())
                                                 ? orderDTO.getShippingMethod()
-                                                : DEFAULT_SHIPPING_METHOD)
+                                                : "STANDARD")
                                 .shippingDateExpected(orderDTO.getShippingDateExpected() != null
                                                 ? orderDTO.getShippingDateExpected()
                                                 : LocalDate.now().plusDays(2))
@@ -476,11 +472,8 @@ public class OrderService implements IOrderService {
         }
 
         private BigDecimal calculateShippingFee(String address, String shippingMethod) {
-                // Tính phí vận chuyển đơn giản - có thể nâng cấp sau
-                if ("EXPRESS".equalsIgnoreCase(shippingMethod)) {
-                        return BigDecimal.valueOf(50000); // 50k VND cho giao nhanh
-                }
-                return DEFAULT_SHIPPING_FEE; // 30k VND cho giao tiêu chuẩn
+                // Không tính phí vận chuyển
+                return BigDecimal.ZERO;
         }
 
         private String generateOrderCode() {
@@ -566,6 +559,30 @@ public class OrderService implements IOrderService {
                                 updateInventory(orderDetails, true);
                                 order.setPaymentStatus(PaymentStatus.REFUNDED);
                                 break;
+                }
+        }
+
+        /**
+         * Check if a user is the owner of an order
+         * Used for @PreAuthorize annotation in controllers
+         * 
+         * @param orderId the order ID to check
+         * @param userId the user ID to verify ownership
+         * @return true if the user owns the order, false otherwise
+         */
+        public boolean isOrderOwner(Long orderId, Long userId) {
+                try {
+                        Order order = orderRepository.findById(orderId)
+                                        .orElse(null);
+                        
+                        if (order == null) {
+                                return false;
+                        }
+                        
+                        return order.getUser() != null && order.getUser().getId().equals(userId);
+                } catch (Exception e) {
+                        logger.error("Error checking order ownership for orderId: {} and userId: {}", orderId, userId, e);
+                        return false;
                 }
         }
 

@@ -21,7 +21,6 @@ import com.tuandat.oceanfresh_backend.dtos.CategoryDTO;
 import com.tuandat.oceanfresh_backend.models.Category;
 import com.tuandat.oceanfresh_backend.responses.ResponseObject;
 import com.tuandat.oceanfresh_backend.services.category.ICategoryService;
-import com.tuandat.oceanfresh_backend.utils.MessageKeys;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -52,7 +51,7 @@ public class CategoryController {
         }
         Category category = categoryService.createCategory(categoryDTO);
         return ResponseEntity.ok().body(ResponseObject.builder()
-                .message("Create category successfully")
+                .message("Tạo danh mục thành công")
                 .status(HttpStatus.OK)
                 .data(category)
                 .build());
@@ -66,7 +65,7 @@ public class CategoryController {
     ) {
         List<CategoryDTO> categories = categoryService.getAllCategories();
         return ResponseEntity.ok(ResponseObject.builder()
-                        .message("Get list of categories successfully")
+                        .message("Lấy danh sách danh mục thành công")
                         .status(HttpStatus.OK)
                         .data(categories)
                 .build());
@@ -79,7 +78,7 @@ public class CategoryController {
         Category existingCategory = categoryService.getCategoryById(categoryId);
         return ResponseEntity.ok(ResponseObject.builder()
                         .data(existingCategory)
-                        .message("Get category information successfully")
+                        .message("Lấy danh mục thành công")
                         .status(HttpStatus.OK)
                 .build());
     }
@@ -93,7 +92,7 @@ public class CategoryController {
         return ResponseEntity.ok(ResponseObject
                 .builder()
                 .data(categoryService.getCategoryById(id))
-                .message(localizationUtils.getLocalizedMessage(MessageKeys.UPDATE_CATEGORY_SUCCESSFULLY))
+                .message("Câp nhật danh mục thành công")
                 .build());
     }
     
@@ -103,7 +102,7 @@ public class CategoryController {
         return ResponseEntity.ok(
                 ResponseObject.builder()
                         .status(HttpStatus.OK)
-                        .message("Delete category successfully")
+                        .message("Xóa danh mục thành công")
                         .build());
     }
 }

@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,8 +32,9 @@ import lombok.RequiredArgsConstructor;
 public class OrderController {
     private final IOrderService orderService;
 
-    // Tạo đơn hàng mới
+    // Tạo đơn hàng mới - chỉ user đăng nhập
     @PostMapping("")
+    @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
     public ResponseEntity<?> createOrder(
             @Valid @RequestBody OrderDTO orderDTO,
             BindingResult result) {
@@ -51,8 +53,9 @@ public class OrderController {
         }
     }
 
-    // Lấy danh sách đơn hàng theo user_id
+    // Lấy danh sách đơn hàng theo user_id - user chỉ có thể xem đơn hàng của mình
     @GetMapping("/user/{user_id}")
+    @PreAuthorize("hasRole('ADMIN') or (hasRole('USER') and #userId == authentication.principal.id)")
     public ResponseEntity<?> getOrdersByUserId(@PathVariable("user_id") Long userId) {
         try {
             List<OrderResponse> orders = orderService.getOrdersByUserId(userId);
@@ -62,8 +65,9 @@ public class OrderController {
         }
     }
 
-    // Lấy chi tiết đơn hàng theo ID
+    // Lấy chi tiết đơn hàng theo ID - user chỉ có thể xem đơn hàng của mình
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or @orderService.isOrderOwner(#id, authentication.principal.id)")
     public ResponseEntity<?> getOrderById(@PathVariable("id") Long id) {
         try {
             Order orderResponse = orderService.getOrderById(id);
@@ -73,8 +77,9 @@ public class OrderController {
         }
     }
 
-    // Lấy tất cả đơn hàng với phân trang
+    // Lấy tất cả đơn hàng với phân trang - chỉ admin
     @GetMapping("")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> getAllOrders(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
@@ -87,8 +92,9 @@ public class OrderController {
         }
     }
 
-    // Cập nhật đơn hàng
+    // Cập nhật đơn hàng - user chỉ có thể cập nhật đơn hàng của mình
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or @orderService.isOrderOwner(#id, authentication.principal.id)")
     public ResponseEntity<?> updateOrder(
             @PathVariable("id") Long id,
             @Valid @RequestBody OrderDTO orderDTO,
@@ -108,8 +114,9 @@ public class OrderController {
         }
     }
 
-    // Cập nhật trạng thái đơn hàng
+    // Cập nhật trạng thái đơn hàng - chỉ admin
     @PutMapping("/{id}/status")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> updateOrderStatus(
             @PathVariable("id") Long id,
             @RequestParam String status) {
@@ -121,8 +128,9 @@ public class OrderController {
         }
     }
 
-    // Hủy đơn hàng (soft delete)
+    // Hủy đơn hàng (soft delete) - user chỉ có thể hủy đơn hàng của mình
     @PutMapping("/{id}/cancel")
+    @PreAuthorize("hasRole('ADMIN') or @orderService.isOrderOwner(#id, authentication.principal.id)")
     public ResponseEntity<?> cancelOrder(@PathVariable("id") Long id) {
         try {
             orderService.deleteOrder(id);

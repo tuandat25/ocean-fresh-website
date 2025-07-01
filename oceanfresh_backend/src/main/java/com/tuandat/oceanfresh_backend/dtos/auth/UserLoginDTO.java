@@ -19,7 +19,7 @@ public class UserLoginDTO extends SocialAccountDTO {
     private String email;
 
     // Password may not be needed for social login but required for traditional login
-    @NotBlank(message = "Mật khẩu không được để trống")
+    @NotBlank(message = "Vui lòng nhập mật khẩu.")
     private String password;
 
     @Min(value = 1, message = "Bạn phải chọn vai trò")

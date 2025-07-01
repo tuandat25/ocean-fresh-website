@@ -26,7 +26,7 @@ public class UserDTO extends SocialAccountDTO {
 
     private String address = "";
 
-    @NotBlank(message = "Mât khẩu không được để trống")
+    @NotBlank(message = "Vui lòng nhập mật khẩu.")
     private String password = "";
 
     @JsonProperty("retype_password")
