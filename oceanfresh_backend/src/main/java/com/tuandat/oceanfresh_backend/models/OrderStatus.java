@@ -3,7 +3,8 @@ package com.tuandat.oceanfresh_backend.models;
 public enum OrderStatus {
     PENDING,
     PROCESSING,
-    SHIPPED,
+    CONFIRMED,
+    SHIPPING,
     DELIVERED,
     CANCELLED_BY_CUSTOMER,
     CANCELLED_BY_ADMIN,

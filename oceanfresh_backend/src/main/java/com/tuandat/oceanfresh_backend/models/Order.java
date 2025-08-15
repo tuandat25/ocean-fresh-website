@@ -1,6 +1,5 @@
 package com.tuandat.oceanfresh_backend.models;
 
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -64,15 +63,21 @@ public class Order {
     private String note;
 
     @Column(name = "order_date")
-    private LocalDateTime orderDate;    @Enumerated(EnumType.STRING)
+    private LocalDateTime orderDate;
+
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     @Builder.Default
     private OrderStatus status = OrderStatus.PENDING;
 
     @Column(name = "subtotal_amount", nullable = false, precision = 15, scale = 2)
-    private BigDecimal subtotalAmount;    @Column(name = "shipping_fee", precision = 15, scale = 2)
+    private BigDecimal subtotalAmount;
+
+    @Column(name = "shipping_fee", precision = 15, scale = 2)
     @Builder.Default
-    private BigDecimal shippingFee = BigDecimal.ZERO;    @Column(name = "discount_amount", precision = 15, scale = 2)
+    private BigDecimal shippingFee = BigDecimal.ZERO;
+    
+    @Column(name = "discount_amount", precision = 15, scale = 2)
     @Builder.Default
     private BigDecimal discountAmount = BigDecimal.ZERO;
 
@@ -92,13 +97,17 @@ public class Order {
     private String trackingNumber;
 
     @Column(name = "payment_method", nullable = false, length = 100)
-    private String paymentMethod;    @Enumerated(EnumType.STRING)
+    private String paymentMethod;
+    @Enumerated(EnumType.STRING)
     @Column(name = "payment_status", nullable = false)
     @Builder.Default
     private PaymentStatus paymentStatus = PaymentStatus.UNPAID;
 
     @Column(name = "vnp_txn_ref")
     private String vnpTxnRef;
+
+    @Column(name = "active")
+    private Boolean active;//thuộc về admin
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -112,7 +121,7 @@ public class Order {
         createdAt = now;
         updatedAt = now;
         orderDate = now;
-        
+
         // Generate order code if not set
         if (orderCode == null) {
             orderCode = generateOrderCode();
@@ -121,8 +130,8 @@ public class Order {
 
     private String generateOrderCode() {
         // Generate format: OF + YYYYMMDD + sequential number
-        return "OF" + java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd").format(LocalDateTime.now()) 
-               + String.format("%03d", System.currentTimeMillis() % 1000);
+        return "OF" + java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd").format(LocalDateTime.now())
+                + String.format("%03d", System.currentTimeMillis() % 1000);
     }
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY)

@@ -7,17 +7,20 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 @Data
+@Getter
+@Setter
 public class ProductVariantRequestDTO {
     // Không cần productId ở đây nếu endpoint là /products/{productId}/variants
 
-    @NotBlank(message = "SKU không được để trống")
+    // SKU không bắt buộc khi thêm mới (sẽ được tự động sinh), có thể sửa khi update
     @Size(max = 100, message = "SKU không được vượt quá 100 ký tự")
     private String sku;
 
@@ -38,7 +41,9 @@ public class ProductVariantRequestDTO {
     private int quantityInStock;
 
     private String thumbnailUrl;
-    private boolean isActive = true;
+
+    @JsonProperty("is_active")
+    private Boolean isActive;
 
     @NotNull(message = "Danh sách thuộc tính không được để trống")
     @NotEmpty(message = "Phải chọn ít nhất một giá trị thuộc tính để định nghĩa một biến thể")

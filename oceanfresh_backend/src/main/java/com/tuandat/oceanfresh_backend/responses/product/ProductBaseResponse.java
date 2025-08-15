@@ -2,10 +2,13 @@ package com.tuandat.oceanfresh_backend.responses.product;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.tuandat.oceanfresh_backend.models.Product;
+import com.tuandat.oceanfresh_backend.models.ProductImage;
 import com.tuandat.oceanfresh_backend.responses.CategoryResponse;
 
 import lombok.Builder;
@@ -30,7 +33,9 @@ public class ProductBaseResponse { // Đổi tên để rõ ràng hơn
     // Thêm các trường khác nếu cần
     // Ví dụ: mô tả, số lượng tồn kho, v.v.
     private String description;
-    private String imageUrl;
+
+    @JsonProperty("product_images")
+    private List<ProductImage> productImages = new ArrayList<>();
 
 
     public static ProductBaseResponse fromEntity(Product product) {
@@ -46,7 +51,7 @@ public class ProductBaseResponse { // Đổi tên để rõ ràng hơn
                     .filter(v -> v.isActive() && v.getPrice() != null)
                     .map(com.tuandat.oceanfresh_backend.models.ProductVariant::getPrice)
                     .min(Comparator.naturalOrder())
-                    .orElse(null);
+                    .orElse(null);  
             max = product.getVariants().stream()
                     .filter(v -> v.isActive() && v.getPrice() != null)
                     .map(com.tuandat.oceanfresh_backend.models.ProductVariant::getPrice)
@@ -65,7 +70,7 @@ public class ProductBaseResponse { // Đổi tên để rõ ràng hơn
                 .minPrice(min)
                 .maxPrice(max)
                 .description(product.getDescription())
-                .imageUrl(product.getMainImageUrl())
+                .productImages(product.getProductImages())
                 .categoryName(product.getCategory() != null ? product.getCategory().getName() : null)
                 .variantCount(product.getVariants() != null ? (long) product.getVariants().size() : 0L)
                 .build();

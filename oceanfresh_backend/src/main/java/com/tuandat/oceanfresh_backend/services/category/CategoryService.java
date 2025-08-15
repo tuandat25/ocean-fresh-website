@@ -65,7 +65,7 @@ public class CategoryService implements ICategoryService {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ChangeSetPersister.NotFoundException());
 
-        List<Product> products = productRepository.findByCategory(category);
+        List<Product> products = categoryRepository.findProductByCategory(category);
         if (!products.isEmpty()) {
             throw new IllegalStateException("Cannot delete category with associated products");
         } else {

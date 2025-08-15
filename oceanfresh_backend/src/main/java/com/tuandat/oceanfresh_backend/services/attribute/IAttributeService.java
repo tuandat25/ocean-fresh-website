@@ -2,12 +2,14 @@ package com.tuandat.oceanfresh_backend.services.attribute;
 
 import java.util.List;
 
+import com.tuandat.oceanfresh_backend.dtos.attribute.AttributeCreateDTO;
 import com.tuandat.oceanfresh_backend.dtos.attribute.AttributeDTO;
 import com.tuandat.oceanfresh_backend.exceptions.ResourceNotFoundException;
+import com.tuandat.oceanfresh_backend.responses.attribute.AttributeWithValuesResponse;
 
 public interface IAttributeService {
-    // Tạo mới một thuộc tính
-    AttributeDTO createAttribute(AttributeDTO attributeDTO);
+    // Tạo mới một thuộc tính kèm values
+    AttributeWithValuesResponse createAttribute(AttributeCreateDTO attributeCreateDTO);
 
     // Lấy thuộc tính theo ID
     AttributeDTO getAttributeById(Long id) throws ResourceNotFoundException;

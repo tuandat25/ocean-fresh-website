@@ -1,14 +1,16 @@
 package com.tuandat.oceanfresh_backend.exceptions;
 
 
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -16,42 +18,152 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
+import com.tuandat.oceanfresh_backend.responses.ResponseObject;
+
 @ControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ErrorDetails> handleResourceNotFoundException(ResourceNotFoundException exception,
+    public ResponseEntity<ResponseObject> handleResourceNotFoundException(ResourceNotFoundException exception,
                                                                       WebRequest webRequest) {
-        ErrorDetails errorDetails = new ErrorDetails(LocalDateTime.now(), exception.getMessage(),
-                webRequest.getDescription(false));
-        return new ResponseEntity<>(errorDetails, HttpStatus.NOT_FOUND);
+        // Tài khoản không tồn tại
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ResponseObject.builder()
+                        .status(HttpStatus.UNAUTHORIZED)
+                        .message("Tài khoản không tồn tại. Vui lòng kiểm tra lại thông tin đăng nhập.")
+                        .data(null)
+                        .build());
+    }
+
+    @ExceptionHandler(InvalidPasswordException.class)
+    public ResponseEntity<ResponseObject> handleInvalidPasswordException(InvalidPasswordException exception,
+                                                                        WebRequest webRequest) {
+        // Mật khẩu không chính xác
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ResponseObject.builder()
+                        .status(HttpStatus.UNAUTHORIZED)
+                        .message("Số điện thoại/email hoặc mật khẩu không đúng.")
+                        .data(null)
+                        .build());
+    }
+
+    @ExceptionHandler(DataNotFoundException.class)
+    public ResponseEntity<ResponseObject> handleDataNotFoundException(DataNotFoundException exception,
+                                                                     WebRequest webRequest) {
+        // Xử lý các trường hợp khác nhau dựa vào message
+        String message = exception.getMessage();
+        HttpStatus status = HttpStatus.UNAUTHORIZED;
+        
+        if (message.contains("Tài khoản đã bị khóa") || message.contains("bị khóa")) {
+            // Tài khoản bị khóa
+            message = "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.";
+        } else if (message.contains("Tài khoản không tồn tại")) {
+            // Tài khoản không tồn tại
+            message = "Số điện thoại/email hoặc mật khẩu không đúng.";
+        } else {
+            // Các trường hợp khác
+            status = HttpStatus.NOT_FOUND;
+        }
+        
+        return ResponseEntity.status(status)
+                .body(ResponseObject.builder()
+                        .status(status)
+                        .message(message)
+                        .data(null)
+                        .build());
     }
 
     @ExceptionHandler(DuplicateResourceException.class)
-    public ResponseEntity<ErrorDetails> handleDuplicateResourceException(DuplicateResourceException exception,
+    public ResponseEntity<ResponseObject> handleDuplicateResourceException(DuplicateResourceException exception,
                                                                        WebRequest webRequest) {
-        ErrorDetails errorDetails = new ErrorDetails(LocalDateTime.now(), exception.getMessage(),
-                webRequest.getDescription(false));
-        return new ResponseEntity<>(errorDetails, HttpStatus.CONFLICT);
+        // Xử lý trường hợp email trùng lặp
+        String message = exception.getMessage();
+        
+        // Kiểm tra nếu là lỗi từ social login
+        if (message.contains("Xác thực không thành công") || message.contains("Email đã có tài khoản")) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ResponseObject.builder()
+                            .status(HttpStatus.CONFLICT)
+                            .message(message)
+                            .data(null)
+                            .build());
+        }
+        
+        // Các trường hợp khác (đăng ký thông thường)
+        if (message.contains("email") || message.contains("Email")) {
+            message = "Email này đã được sử dụng. Vui lòng sử dụng email khác.";
+        } else if (message.contains("phone") || message.contains("số điện thoại")) {
+            message = "Số điện thoại này đã được sử dụng. Vui lòng sử dụng số điện thoại khác.";
+        }
+        
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ResponseObject.builder()
+                        .status(HttpStatus.CONFLICT)
+                        .message(message)
+                        .data(null)
+                        .build());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ErrorDetails> handleIllegalArgumentException(IllegalArgumentException exception,
+    public ResponseEntity<ResponseObject> handleIllegalArgumentException(IllegalArgumentException exception,
                                                                     WebRequest webRequest) {
-        ErrorDetails errorDetails = new ErrorDetails(LocalDateTime.now(), exception.getMessage(),
-                webRequest.getDescription(false));
-        return new ResponseEntity<>(errorDetails, HttpStatus.BAD_REQUEST);
+        // Dữ liệu đầu vào không hợp lệ
+        String message = exception.getMessage();
+        if (message.contains("Google") || message.contains("google")) {
+            message = "Xác thực Google thất bại. Vui lòng thử lại.";
+        } else {
+            message = "Dữ liệu đầu vào không hợp lệ. " + message;
+        }
+        
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ResponseObject.builder()
+                        .status(HttpStatus.BAD_REQUEST)
+                        .message(message)
+                        .data(null)
+                        .build());
     }
 
+    @ExceptionHandler(SocialLoginException.class)
+    public ResponseEntity<ResponseObject> handleSocialLoginException(SocialLoginException exception,
+                                                                   WebRequest webRequest) {
+        // Đăng nhập mạng xã hội thất bại
+        String message = "Xác thực Google thất bại. Vui lòng thử lại.";
+        
+        if (exception.getMessage().contains("Facebook")) {
+            message = "Đăng nhập Facebook thất bại. Vui lòng thử lại.";
+        }
+        
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ResponseObject.builder()
+                        .status(HttpStatus.UNAUTHORIZED)
+                        .message(message)
+                        .data(null)
+                        .build());
+    }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorDetails> handleGlobalException(Exception exception,
+    public ResponseEntity<ResponseObject> handleGlobalException(Exception exception,
                                                               WebRequest webRequest) {
-        ErrorDetails errorDetails = new ErrorDetails(LocalDateTime.now(), exception.getMessage(),
-                webRequest.getDescription(false));
         // Log the exception here
         logger.error("Unhandled exception occurred: ", exception);
-        return new ResponseEntity<>(errorDetails, HttpStatus.INTERNAL_SERVER_ERROR);
+        
+        String message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.";
+        
+        // Xử lý một số trường hợp đặc biệt
+        if (exception.getMessage() != null) {
+            if (exception.getMessage().contains("Google") || exception.getMessage().contains("OAuth")) {
+                message = "Xác thực Google thất bại. Vui lòng thử lại.";
+            } else if (exception.getMessage().contains("Facebook")) {
+                message = "Đăng nhập Facebook thất bại. Vui lòng thử lại.";
+            }
+        }
+        
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ResponseObject.builder()
+                        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .message(message)
+                        .data(null)
+                        .build());
     }
 
     @Override
@@ -60,14 +172,90 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                                                                   HttpStatusCode status,
                                                                   WebRequest request) {
         Map<String, String> errors = new HashMap<>();
+        StringBuilder errorMessage = new StringBuilder("Dữ liệu đầu vào không hợp lệ. ");
+        
         ex.getBindingResult().getAllErrors().forEach((error) -> {
             String fieldName = ((FieldError) error).getField();
             String message = error.getDefaultMessage();
             errors.put(fieldName, message);
+            errorMessage.append(fieldName).append(": ").append(message).append(". ");
         });
-        return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
+        
+        ResponseObject responseObject = ResponseObject.builder()
+                .status(HttpStatus.BAD_REQUEST)
+                .message(errorMessage.toString().trim())
+                .data(errors)
+                .build();
+                
+        return new ResponseEntity<>(responseObject, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(InvalidInputException.class)
+    public ResponseEntity<ResponseObject> handleInvalidInputException(InvalidInputException exception,
+                                                                    WebRequest webRequest) {
+        // Xử lý các lỗi validation đầu vào
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ResponseObject.builder()
+                        .status(HttpStatus.BAD_REQUEST)
+                        .message(exception.getMessage())
+                        .data(null)
+                        .build());
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ResponseObject> handleDataIntegrityViolationException(DataIntegrityViolationException exception,
+                                                                               WebRequest webRequest) {
+        String message = "Dữ liệu không hợp lệ.";
+        
+        // Kiểm tra nếu là lỗi duplicate key cho email
+        if (exception.getMessage() != null && exception.getMessage().contains("Duplicate entry") && 
+            exception.getMessage().contains("for key 'email'")) {
+            message = "Xác thực không thành công. Email đã có tài khoản đăng ký.";
+        }
+        // Kiểm tra nếu là lỗi duplicate key cho phone
+        else if (exception.getMessage() != null && exception.getMessage().contains("Duplicate entry") && 
+                 exception.getMessage().contains("for key 'phone")) {
+            message = "Số điện thoại này đã được sử dụng. Vui lòng sử dụng số điện thoại khác.";
+        }
+        
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ResponseObject.builder()
+                        .status(HttpStatus.CONFLICT)
+                        .message(message)
+                        .data(null)
+                        .build());
+    }
+
+    @ExceptionHandler(AuthenticationCredentialsNotFoundException.class)
+    public ResponseEntity<ResponseObject> handleAuthenticationCredentialsNotFoundException(
+            AuthenticationCredentialsNotFoundException exception,
+            WebRequest webRequest) {
+        
+        // logger.warn("Authentication credentials not found: {}", exception.getMessage());
+        
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ResponseObject.builder()
+                        .status(HttpStatus.UNAUTHORIZED)
+                        .message("Bạn cần đăng nhập để  thực hiện")
+                        .data(null)
+                        .build());
+    }
+
+    /**
+     * Xử lý lỗi Access Denied - không có quyền thực hiện hành động
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ResponseObject> handleAccessDeniedException(
+            AccessDeniedException exception,
+            WebRequest webRequest) {
+        
+        // logger.warn("Access denied: {}", exception.getMessage());
+        
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ResponseObject.builder()
+                        .status(HttpStatus.FORBIDDEN)
+                        .message("Bạn không có quyền thực hiện")
+                        .data(null)
+                        .build());
     }
 }
-
-// Helper class for error details
-record ErrorDetails(LocalDateTime timestamp, String message, String details) {}

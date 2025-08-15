@@ -33,6 +33,9 @@ public class OrderDetailResponse extends BaseResponse {
     @JsonProperty("variant_name")
     private String variantName;
 
+    @JsonProperty("main_image_url")
+    private String mainImageUrl;
+
     private int quantity;
 
     @JsonProperty("price_at_order")
@@ -41,11 +44,6 @@ public class OrderDetailResponse extends BaseResponse {
     @JsonProperty("total_line_amount")
     private BigDecimal totalLineAmount;
 
-    /**
-     * Convert từ OrderDetail entity sang OrderDetailResponse
-     * @param orderDetail OrderDetail entity
-     * @return OrderDetailResponse
-     */
     public static OrderDetailResponse fromOrderDetail(OrderDetail orderDetail) {
         if (orderDetail == null) {
             return null;
@@ -54,36 +52,34 @@ public class OrderDetailResponse extends BaseResponse {
         String productName = null;
         String variantName = null;
         String productVariantSku = null;
+        String mainImageUrl = null;
 
         // Lấy thông tin từ ProductVariant
         if (orderDetail.getProductVariant() != null) {
             productVariantSku = orderDetail.getProductVariant().getSku();
             variantName = orderDetail.getProductVariant().getVariantName();
-            
-            // Lấy tên sản phẩm từ Product
+
+            // Lấy thông tin từ Product
             if (orderDetail.getProductVariant().getProduct() != null) {
                 productName = orderDetail.getProductVariant().getProduct().getName();
+                mainImageUrl = orderDetail.getProductVariant().getProduct().getMainImageUrl(); // ✅ Thêm dòng này
             }
         }
 
         return OrderDetailResponse.builder()
                 .id(orderDetail.getId())
-                .productVariantId(orderDetail.getProductVariant() != null ? 
-                    orderDetail.getProductVariant().getId() : null)
+                .productVariantId(
+                        orderDetail.getProductVariant() != null ? orderDetail.getProductVariant().getId() : null)
                 .productVariantSku(productVariantSku)
                 .productName(productName)
                 .variantName(variantName)
                 .quantity(orderDetail.getQuantity())
                 .priceAtOrder(orderDetail.getPriceAtOrder())
                 .totalLineAmount(orderDetail.getTotalLineAmount())
+                .mainImageUrl(mainImageUrl) // ✅ Giờ đã có giá trị
                 .build();
     }
 
-    /**
-     * Convert từ List<OrderDetail> sang List<OrderDetailResponse>
-     * @param orderDetails List OrderDetail entities
-     * @return List<OrderDetailResponse>
-     */
     public static List<OrderDetailResponse> fromOrderDetails(List<OrderDetail> orderDetails) {
         if (orderDetails == null || orderDetails.isEmpty()) {
             return List.of(); // Trả về empty list thay vì null

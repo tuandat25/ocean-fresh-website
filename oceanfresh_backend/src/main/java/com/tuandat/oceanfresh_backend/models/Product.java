@@ -1,5 +1,6 @@
 package com.tuandat.oceanfresh_backend.models;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -58,7 +59,25 @@ public class Product extends BaseEntity{
     private String origin;
 
     @Column(name = "main_image_url")
-    private String mainImageUrl;    @Column(name = "is_active", columnDefinition = "BOOLEAN DEFAULT TRUE")
+    private String mainImageUrl;
+
+    // Các trường mới được thêm vào
+    @Column(name = "storage_instruction", length = 255)
+    private String storageInstruction;
+
+    @Column(name = "harvest_date")
+    private LocalDate harvestDate;
+
+    @Column(name = "freshness_guarantee_period", length = 50)
+    private String freshnessGuaranteePeriod;
+
+    @Column(name = "harvest_area", length = 255)
+    private String harvestArea;
+
+    @Column(name = "return_policy", length = 255)
+    private String returnPolicy;
+
+    @Column(name = "is_active", columnDefinition = "BOOLEAN DEFAULT TRUE")
     @Builder.Default
     private boolean isActive = true;
 
@@ -77,7 +96,7 @@ public class Product extends BaseEntity{
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
     @JsonManagedReference
     @Builder.Default
-    private List<Comment> comments = new ArrayList<>();
+    private List<Review> reviews = new ArrayList<>();
     
 
 }

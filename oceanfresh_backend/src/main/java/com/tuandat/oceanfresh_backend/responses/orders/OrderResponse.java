@@ -1,19 +1,20 @@
 package com.tuandat.oceanfresh_backend.responses.orders;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.tuandat.oceanfresh_backend.models.Order;
 import com.tuandat.oceanfresh_backend.models.PaymentStatus;
 import com.tuandat.oceanfresh_backend.responses.BaseResponse;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -29,7 +30,7 @@ public class OrderResponse extends BaseResponse {
     @JsonProperty("user_id")
     private Long userId;
 
-    private String fullname;
+    private String fullName;
 
     private String email;
 
@@ -89,20 +90,22 @@ public class OrderResponse extends BaseResponse {
     private int totalItems;
 
     @JsonProperty("total_quantity")
-    private int totalQuantity;    
+    private int totalQuantity;
 
+    @JsonProperty("created_at")
+    private LocalDateTime createdAt;
 
-
+    @JsonProperty("updated_at")
+    private LocalDateTime updatedAt;
 
     public static OrderResponse fromOrder(Order order) {
         List<OrderDetailResponse> orderDetailResponses = OrderDetailResponse.fromOrderDetails(order.getOrderDetails());
-        
+
         // Tính tổng số loại sản phẩm (số items khác nhau)
         int totalItems = order.getOrderDetails() != null ? order.getOrderDetails().size() : 0;
-        
+
         // Tính tổng số lượng sản phẩm
-        int totalQuantity = order.getOrderDetails() != null ? 
-            order.getOrderDetails().stream()
+        int totalQuantity = order.getOrderDetails() != null ? order.getOrderDetails().stream()
                 .mapToInt(detail -> detail.getQuantity())
                 .sum() : 0;
 
@@ -110,7 +113,7 @@ public class OrderResponse extends BaseResponse {
                 .id(order.getId())
                 .orderCode(order.getOrderCode())
                 .userId(order.getUser() != null ? order.getUser().getId() : null)
-                .fullname(order.getFullName())
+                .fullName(order.getFullName())
                 .email(order.getEmail())
                 .phoneNumber(order.getPhoneNumber())
                 .shippingAddress(order.getShippingAddress())
@@ -132,6 +135,8 @@ public class OrderResponse extends BaseResponse {
                 .orderDetails(orderDetailResponses)
                 .totalItems(totalItems)
                 .totalQuantity(totalQuantity)
+                .createdAt(order.getCreatedAt())
+                .updatedAt(order.getUpdatedAt())
                 .build();
     }
 
