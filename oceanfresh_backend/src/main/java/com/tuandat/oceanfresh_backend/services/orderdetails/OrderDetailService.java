@@ -66,7 +66,7 @@ public class OrderDetailService implements IOrderDetailService{
     @Transactional(readOnly = true)
     public OrderDetail getOrderDetail(Long id) throws DataNotFoundException {
         return orderDetailRepository.findById(id)
-                .orElseThrow(()->new DataNotFoundException("Cannot find OrderDetail with id: "+id));
+                .orElseThrow(() -> new DataNotFoundException("Cannot find order detail with id: " + id));
     }
 
     @Override

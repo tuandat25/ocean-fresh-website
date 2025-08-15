@@ -11,8 +11,12 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 @Data
+@Getter
+@Setter
 public class ProductVariantRequestDTO {
     // Không cần productId ở đây nếu endpoint là /products/{productId}/variants
 
@@ -37,7 +41,9 @@ public class ProductVariantRequestDTO {
     private int quantityInStock;
 
     private String thumbnailUrl;
-    private boolean isActive = true;
+
+    @JsonProperty("is_active")
+    private Boolean isActive;
 
     @NotNull(message = "Danh sách thuộc tính không được để trống")
     @NotEmpty(message = "Phải chọn ít nhất một giá trị thuộc tính để định nghĩa một biến thể")

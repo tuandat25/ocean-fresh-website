@@ -23,6 +23,10 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     List<Order> findByUserIdOrderByOrderDateDesc(Long userId);
 
+    // Thêm method này vào OrderRepository (Trường hợp số 0 ở đau vnpTxnRef)
+    @Query("SELECT o FROM Order o WHERE o.vnpTxnRef = :txnRef OR CAST(o.vnpTxnRef AS int) = :orderId")
+    Optional<Order> findByVnpTxnRefOrNumericValue(@Param("txnRef") String txnRef, @Param("orderId") Long orderId);
+
     List<Order> findByStatus(String status);
 
     Page<Order> findByStatusIn(List<String> statuses, Pageable pageable);

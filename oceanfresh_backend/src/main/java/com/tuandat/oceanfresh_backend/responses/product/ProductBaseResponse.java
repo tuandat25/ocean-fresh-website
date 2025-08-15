@@ -51,7 +51,7 @@ public class ProductBaseResponse { // Đổi tên để rõ ràng hơn
                     .filter(v -> v.isActive() && v.getPrice() != null)
                     .map(com.tuandat.oceanfresh_backend.models.ProductVariant::getPrice)
                     .min(Comparator.naturalOrder())
-                    .orElse(null);
+                    .orElse(null);  
             max = product.getVariants().stream()
                     .filter(v -> v.isActive() && v.getPrice() != null)
                     .map(com.tuandat.oceanfresh_backend.models.ProductVariant::getPrice)

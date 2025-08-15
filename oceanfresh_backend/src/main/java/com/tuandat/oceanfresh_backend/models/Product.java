@@ -71,8 +71,8 @@ public class Product extends BaseEntity{
     @Column(name = "freshness_guarantee_period", length = 50)
     private String freshnessGuaranteePeriod;
 
-    @Column(name = "delivery_area", length = 255)
-    private String deliveryArea;
+    @Column(name = "harvest_area", length = 255)
+    private String harvestArea;
 
     @Column(name = "return_policy", length = 255)
     private String returnPolicy;
@@ -96,7 +96,7 @@ public class Product extends BaseEntity{
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
     @JsonManagedReference
     @Builder.Default
-    private List<Comment> comments = new ArrayList<>();
+    private List<Review> reviews = new ArrayList<>();
     
 
 }

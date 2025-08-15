@@ -20,6 +20,6 @@ public class ProductDetailDTO extends ProductDTO {
     private String storageInstruction;
     private LocalDate harvestDate;
     private String freshnessGuaranteePeriod;
-    private String deliveryArea;
+    private String harvestArea;
     private String returnPolicy;
 }

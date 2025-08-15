@@ -192,7 +192,7 @@ public class UserController {
                         .build());
     }
 
-    // @PostMapping("/login/social")
+    @PostMapping("/login/social")
     private ResponseEntity<ResponseObject> loginSocial(
             @Valid @RequestBody UserLoginDTO userLoginDTO,
             HttpServletRequest request) throws Exception {

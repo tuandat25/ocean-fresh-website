@@ -15,10 +15,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.tuandat.oceanfresh_backend.dtos.attribute.AttributeCreateDTO;
 import com.tuandat.oceanfresh_backend.dtos.attribute.AttributeDTO;
 import com.tuandat.oceanfresh_backend.exceptions.ResourceNotFoundException;
 import com.tuandat.oceanfresh_backend.responses.AttributeValueResponse;
 import com.tuandat.oceanfresh_backend.responses.ResponseObject;
+import com.tuandat.oceanfresh_backend.responses.attribute.AttributeWithValuesResponse;
 import com.tuandat.oceanfresh_backend.services.attribute.IAttributeService;
 import com.tuandat.oceanfresh_backend.services.attribute.IAttributeValueService;
 
@@ -79,7 +81,7 @@ public class AttributeController {
     }
     
     @PostMapping("")
-    public ResponseEntity<ResponseObject> createAttribute(@Valid @RequestBody AttributeDTO attributeDTO,
+    public ResponseEntity<ResponseObject> createAttribute(@Valid @RequestBody AttributeCreateDTO attributeDTO,
                                                           BindingResult result) {
         if (result.hasErrors()) {
             List<String> errorMessages = result.getFieldErrors()
@@ -96,7 +98,7 @@ public class AttributeController {
         }
         
         // Kiểm tra nếu tên hoặc mã thuộc tính đã tồn tại
-        if (attributeService.existsByName(attributeDTO.getName())) {
+        if (attributeService.existsByName(attributeDTO.getAttributeName())) {
             return ResponseEntity.badRequest().body(
                     ResponseObject.builder()
                             .status(HttpStatus.BAD_REQUEST)
@@ -104,11 +106,11 @@ public class AttributeController {
                             .build());
         }
         
-        AttributeDTO newAttribute = attributeService.createAttribute(attributeDTO);
+        AttributeWithValuesResponse newAttribute = attributeService.createAttribute(attributeDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 ResponseObject.builder()
                         .status(HttpStatus.CREATED)
-                        .message("Tạo thuộc tính thành công")
+                        .message("Tạo thuộc tính và giá trị thành công")
                         .data(newAttribute)
                         .build());
     }

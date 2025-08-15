@@ -112,8 +112,8 @@ public class User extends BaseEntity implements UserDetails, OAuth2User {
         return getAttribute("name");
     }
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
-
     @JsonManagedReference
-    private List<Comment> comments = new ArrayList<>();
+    @Builder.Default
+    private List<Review> reviews = new ArrayList<>();
 }
 

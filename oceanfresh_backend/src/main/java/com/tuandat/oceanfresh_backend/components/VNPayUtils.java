@@ -1,13 +1,22 @@
 package com.tuandat.oceanfresh_backend.components;
 
-import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.stereotype.Component;
+import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.TimeZone;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
-import java.text.SimpleDateFormat;
-import java.util.*;
+
+import org.springframework.stereotype.Component;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 @Component
 public class VNPayUtils {
@@ -42,26 +51,29 @@ public class VNPayUtils {
     }
 
     // HMAC SHA-512
-    public String hmacSHA512(final String key, final String data) {
-        try {
-            if (key == null || data == null) {
-                throw new NullPointerException();
+    public String hmacSHA512(String secretKey, String data) {
+    try {
+        Mac hmac = Mac.getInstance("HmacSHA512");
+        SecretKeySpec secretKeySpec = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8), "HmacSHA512");
+        hmac.init(secretKeySpec);
+        
+        byte[] hashBytes = hmac.doFinal(data.getBytes(StandardCharsets.UTF_8));
+        
+        // Convert to hex string
+        StringBuilder hexString = new StringBuilder();
+        for (byte b : hashBytes) {
+            String hex = Integer.toHexString(0xff & b);
+            if (hex.length() == 1) {
+                hexString.append('0');
             }
-            final Mac hmac512 = Mac.getInstance("HmacSHA512");
-            byte[] hmacKeyBytes = key.getBytes(StandardCharsets.UTF_8);
-            final SecretKeySpec secretKeySpec = new SecretKeySpec(hmacKeyBytes, "HmacSHA512");
-            hmac512.init(secretKeySpec);
-            byte[] dataBytes = data.getBytes(StandardCharsets.UTF_8);
-            byte[] result = hmac512.doFinal(dataBytes);
-            StringBuilder sb = new StringBuilder(2 * result.length);
-            for (byte b : result) {
-                sb.append(String.format("%02x", b & 0xff));
-            }
-            return sb.toString();
-        } catch (Exception ex) {
-            return "";
+            hexString.append(hex);
         }
+        
+        return hexString.toString().toUpperCase();
+    } catch (Exception e) {
+        throw new RuntimeException("Error generating HMAC SHA512", e);
     }
+}
 
     // Get random number
     public String getRandomNumber(int len) {

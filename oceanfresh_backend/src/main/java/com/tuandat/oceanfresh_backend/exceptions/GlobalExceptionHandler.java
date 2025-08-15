@@ -9,6 +9,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -220,6 +222,39 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 .body(ResponseObject.builder()
                         .status(HttpStatus.CONFLICT)
                         .message(message)
+                        .data(null)
+                        .build());
+    }
+
+    @ExceptionHandler(AuthenticationCredentialsNotFoundException.class)
+    public ResponseEntity<ResponseObject> handleAuthenticationCredentialsNotFoundException(
+            AuthenticationCredentialsNotFoundException exception,
+            WebRequest webRequest) {
+        
+        // logger.warn("Authentication credentials not found: {}", exception.getMessage());
+        
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ResponseObject.builder()
+                        .status(HttpStatus.UNAUTHORIZED)
+                        .message("Bạn cần đăng nhập để  thực hiện")
+                        .data(null)
+                        .build());
+    }
+
+    /**
+     * Xử lý lỗi Access Denied - không có quyền thực hiện hành động
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ResponseObject> handleAccessDeniedException(
+            AccessDeniedException exception,
+            WebRequest webRequest) {
+        
+        // logger.warn("Access denied: {}", exception.getMessage());
+        
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ResponseObject.builder()
+                        .status(HttpStatus.FORBIDDEN)
+                        .message("Bạn không có quyền thực hiện")
                         .data(null)
                         .build());
     }

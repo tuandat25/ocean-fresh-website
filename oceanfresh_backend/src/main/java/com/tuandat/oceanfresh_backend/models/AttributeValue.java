@@ -27,7 +27,7 @@ import lombok.Setter;
 @Builder
 @Entity
 @Table(name = "attribute_values", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"attribute_id", "value"})
+        @UniqueConstraint(columnNames = { "attribute_id", "value" })
 })
 public class AttributeValue extends BaseEntity {
     @Id
@@ -39,7 +39,8 @@ public class AttributeValue extends BaseEntity {
     private Attribute attribute;
 
     @Column(nullable = false)
-    private String value;    @Column(name = "display_order", columnDefinition = "INT DEFAULT 0")
+    private String value;
+    @Column(name = "display_order", columnDefinition = "INT DEFAULT 0")
     @Builder.Default
     private int displayOrder = 0;
 

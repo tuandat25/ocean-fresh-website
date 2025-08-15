@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Set;
 
+import com.tuandat.oceanfresh_backend.dtos.attribute.AttributeValueDTO;
+
 import lombok.Data;
 
 @Data

@@ -107,6 +107,42 @@ public class JwtTokenUtils {
     public String getSubject(String token) {
         return  extractClaim(token, Claims::getSubject);
     }
+    
+    public Long getUserIdFromToken(String token) {
+        try {
+            Claims claims = extractAllClaims(token);
+            return claims.get("userId", Long.class);
+        } catch (Exception e) {
+            logger.error("Error extracting userId from token: {}", e.getMessage());
+            return null;
+        }
+    }
+    
+    public boolean validateToken(String token) {
+        try {
+            Claims claims = extractAllClaims(token);
+            Token existingToken = tokenRepository.findByToken(token);
+            if(existingToken == null || existingToken.isRevoked()) {
+                return false;
+            }
+            return !isTokenExpired(token);
+        } catch (Exception e) {
+            logger.error("Token validation error: {}", e.getMessage());
+            return false;
+        }
+    }
+    
+    // Method riêng cho WebSocket - chỉ check JWT structure và expiration
+    public boolean validateTokenForWebSocket(String token) {
+        try {
+            Claims claims = extractAllClaims(token);
+            return !isTokenExpired(token);
+        } catch (Exception e) {
+            logger.error("WebSocket token validation error: {}", e.getMessage());
+            return false;
+        }
+    }
+    
     public boolean validateToken(String token, User userDetails) {
         try {
             String subject = extractClaim(token, Claims::getSubject);
@@ -131,4 +167,5 @@ public class JwtTokenUtils {
         }
         return false;
     }
+    
 }

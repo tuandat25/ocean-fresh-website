@@ -28,4 +28,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByFacebookAccountId(String facebookAccountId);
     Optional<User> findByGoogleAccountId(String googleAccountId);
+
+    @Query("SELECT u FROM User u WHERE u.role.name = :roleName AND u.id IN :userIds")
+    List<User> findByRoleNameAndIdIn(@Param("roleName") String roleName, @Param("userIds") List<Long> userIds);
 }

@@ -90,7 +90,7 @@ public class OrderResponse extends BaseResponse {
     private int totalItems;
 
     @JsonProperty("total_quantity")
-    private int totalQuantity;    
+    private int totalQuantity;
 
     @JsonProperty("created_at")
     private LocalDateTime createdAt;
@@ -98,18 +98,14 @@ public class OrderResponse extends BaseResponse {
     @JsonProperty("updated_at")
     private LocalDateTime updatedAt;
 
-
-
-
     public static OrderResponse fromOrder(Order order) {
         List<OrderDetailResponse> orderDetailResponses = OrderDetailResponse.fromOrderDetails(order.getOrderDetails());
-        
+
         // Tính tổng số loại sản phẩm (số items khác nhau)
         int totalItems = order.getOrderDetails() != null ? order.getOrderDetails().size() : 0;
-        
+
         // Tính tổng số lượng sản phẩm
-        int totalQuantity = order.getOrderDetails() != null ? 
-            order.getOrderDetails().stream()
+        int totalQuantity = order.getOrderDetails() != null ? order.getOrderDetails().stream()
                 .mapToInt(detail -> detail.getQuantity())
                 .sum() : 0;
 

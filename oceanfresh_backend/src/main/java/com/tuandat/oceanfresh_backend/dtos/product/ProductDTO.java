@@ -14,8 +14,6 @@ public class ProductDTO {
     @Size(max = 255, message = "Product name must be less than 255 characters")
     private String name;
 
-    @NotBlank(message = "Product slug cannot be blank")
-    @Size(max = 255, message = "Product slug must be less than 255 characters")
     private String slug; // Nên tự động tạo từ name nếu không cung cấp
 
     private String mainImageUrl;

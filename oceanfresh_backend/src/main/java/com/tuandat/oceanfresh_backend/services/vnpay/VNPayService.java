@@ -1,10 +1,12 @@
 package com.tuandat.oceanfresh_backend.services.vnpay;
+
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -19,6 +21,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -34,6 +38,8 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class VNPayService implements IVNPayService {
+
+    private static final Logger logger = LoggerFactory.getLogger(VNPayService.class);
 
     private final VNPayConfig vnPayConfig;
     private final VNPayUtils vnPayUtils;
@@ -111,6 +117,7 @@ public class VNPayService implements IVNPayService {
 
         return vnPayConfig.getVnpPayUrl() + "?" + queryData;
     }
+
     @Override
     public String queryTransaction(PaymentQueryDTO queryDto, HttpServletRequest httpRequest) throws IOException {
         // Chuẩn bị tham số cho VNPay
@@ -166,13 +173,43 @@ public class VNPayService implements IVNPayService {
         }
     }
 
+    @Override
     public String refundTransaction(PaymentRefundDTO refundRequest) throws IOException {
-        String requestId = vnPayUtils.getRandomNumber(8); // Unique request ID
-        String version = "2.1.0"; // API version
-        String command = "refund"; // Refund command
-        String terminalCode = vnPayConfig.getVnpTmnCode(); // Terminal code
+        // Tạo các tham số cần thiết
+        String requestId = vnPayUtils.getRandomNumber(8);
+        String version = "2.1.0";
+        String command = "refund";
+        String terminalCode = vnPayConfig.getVnpTmnCode();
+        String createDate = vnPayUtils.getCurrentDateTime();
+        String orderInfo = "Hoan tien don hang: " + refundRequest.getOrderId();
+        String transactionNo = refundRequest.getVnpTxnRef() != null ? refundRequest.getVnpTxnRef() : "";
+        String transactionDate = refundRequest.getOriginalTransactionDate() != null ? 
+                refundRequest.getOriginalTransactionDate() : refundRequest.getTransactionDate();
 
-        // Build VNPay parameters
+        // Tạo hash data theo đúng format VNPay (nối bằng dấu |)
+        // Theo tài liệu: vnp_RequestId + "|" + vnp_Version + "|" + vnp_Command + "|" + vnp_TmnCode + "|" + 
+        // vnp_TransactionType + "|" + vnp_TxnRef + "|" + vnp_Amount + "|" + vnp_TransactionNo + "|" + 
+        // vnp_TransactionDate + "|" + vnp_CreateBy + "|" + vnp_CreateDate + "|" + vnp_IpAddr + "|" + vnp_OrderInfo
+        String hashData = String.join("|", 
+            requestId,
+            version,
+            command,
+            terminalCode,
+            refundRequest.getTransactionType(),
+            refundRequest.getOrderId(),
+            String.valueOf(refundRequest.getAmount() * 100),
+            transactionNo,
+            transactionDate,
+            refundRequest.getCreatedBy(),
+            createDate,
+            refundRequest.getIpAddress(),
+            orderInfo
+        );
+
+        // Tạo secure hash
+        String secureHash = vnPayUtils.hmacSHA512(vnPayConfig.getSecretKey(), hashData);
+
+        // Build JSON payload theo đúng spec VNPay
         Map<String, String> params = new LinkedHashMap<>();
         params.put("vnp_RequestId", requestId);
         params.put("vnp_Version", version);
@@ -180,55 +217,69 @@ public class VNPayService implements IVNPayService {
         params.put("vnp_TmnCode", terminalCode);
         params.put("vnp_TransactionType", refundRequest.getTransactionType());
         params.put("vnp_TxnRef", refundRequest.getOrderId());
-        params.put("vnp_Amount", String.valueOf(refundRequest.getAmount() * 100)); // Amount in smallest currency unit
-        params.put("vnp_OrderInfo", "Refund for OrderId: " + refundRequest.getOrderId());
-        params.put("vnp_TransactionDate", refundRequest.getTransactionDate());
+        params.put("vnp_Amount", String.valueOf(refundRequest.getAmount() * 100));
+        params.put("vnp_OrderInfo", orderInfo);
+        params.put("vnp_TransactionNo", transactionNo);
+        params.put("vnp_TransactionDate", transactionDate);
         params.put("vnp_CreateBy", refundRequest.getCreatedBy());
+        params.put("vnp_CreateDate", createDate);
         params.put("vnp_IpAddr", refundRequest.getIpAddress());
-
-        // Generate secure hash
-        String hashData = String.join("|",
-                requestId,
-                version,
-                command,
-                terminalCode,
-                refundRequest.getTransactionType(),
-                refundRequest.getOrderId(),
-                String.valueOf(refundRequest.getAmount() * 100),
-                refundRequest.getTransactionDate(),
-                refundRequest.getCreatedBy(),
-                refundRequest.getIpAddress(),
-                "Refund for OrderId: " + refundRequest.getOrderId());
-        String secureHash = vnPayUtils.hmacSHA512(vnPayConfig.getSecretKey(), hashData);
         params.put("vnp_SecureHash", secureHash);
 
-        // Send request to VNPay
-        URL apiUrl = new URL(vnPayConfig.getVnpApiUrl());
+        // Log để debug
+        logger.info("=== VNPay Refund Request ===");
+        logger.info("Request ID: {}", requestId);
+        logger.info("Order ID: {}", refundRequest.getOrderId());
+        logger.info("Amount: {} VND", refundRequest.getAmount());
+        logger.info("Transaction Type: {}", refundRequest.getTransactionType());
+        logger.info("Hash data: {}", hashData);
+        logger.info("Secure hash: {}", secureHash);
+        logger.debug("Secret key length: {}", vnPayConfig.getSecretKey().length());
+        logger.debug("Request params: {}", params);
+
+        // Gửi request đến VNPay
+        URL apiUrl = URI.create(vnPayConfig.getVnpApiUrl()).toURL();
         HttpURLConnection connection = (HttpURLConnection) apiUrl.openConnection();
         connection.setRequestMethod("POST");
         connection.setRequestProperty("Content-Type", "application/json");
+        connection.setRequestProperty("User-Agent", "OceanFresh-Backend/1.0");
         connection.setDoOutput(true);
+        connection.setConnectTimeout(30000);
+        connection.setReadTimeout(30000);
 
+        // Ghi dữ liệu JSON
         try (OutputStream outputStream = connection.getOutputStream()) {
             byte[] jsonPayload = new ObjectMapper().writeValueAsBytes(params);
-            outputStream.write(jsonPayload, 0, jsonPayload.length);
+            outputStream.write(jsonPayload);
         }
 
-        // Read response
+        // Đọc response
         int responseCode = connection.getResponseCode();
-        if (responseCode != HttpURLConnection.HTTP_OK) {
-            throw new RuntimeException("Failed to process refund. Response code: " + responseCode);
+        StringBuilder response = new StringBuilder();
+
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(
+                        responseCode >= 200 && responseCode < 300 ? connection.getInputStream()
+                                : connection.getErrorStream(),
+                        StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                response.append(line);
+            }
         }
 
-        try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
-            StringBuilder responseBuilder = new StringBuilder();
-            String line;
-            while ((line = bufferedReader.readLine()) != null) {
-                responseBuilder.append(line.trim());
-            }
-            return responseBuilder.toString();
+        // Log response để debug
+        logger.info("=== VNPay Refund Response ===");
+        logger.info("Response code: {}", responseCode);
+        logger.info("Response body: {}", response.toString());
+
+        if (responseCode != HttpURLConnection.HTTP_OK) {
+            logger.error("VNPay API Error - Code: {}, Response: {}", responseCode, response.toString());
+            throw new RuntimeException(
+                    "VNPay API Error. Response code: " + responseCode + ", Response: " + response.toString());
         }
+
+        return response.toString();
     }
 
 }
-
